@@ -7,7 +7,7 @@
 //
 public import ScriptingBridge
 
-/// Protocol for ScritingBridge Objects.
+/// Protocol for ScriptingBridge Objects.
 ///
 /// This protocol defines the basic functionality for ScriptingBridge objects.
 @objc public protocol SBObjectProtocol: NSObjectProtocol {
