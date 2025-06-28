@@ -15,7 +15,7 @@ import Foundation
 ///
 /// - Parameters:
 ///   - suites: The collection of scripting suites defined in the SDEF file
-public struct SDEFModel {
+public struct SDEFModel: Codable {
     /// The scripting suites contained within this SDEF model
     public let suites: [SDEFSuite]
 
@@ -43,7 +43,7 @@ public struct SDEFModel {
 ///   - enumerations: The enumeration types defined within this suite
 ///   - commands: The scriptable commands available within this suite
 ///   - classExtensions: Extensions to existing classes from other suites
-public struct SDEFSuite {
+public struct SDEFSuite: Codable {
     /// The human-readable name of this scripting suite
     public let name: String
 
@@ -103,7 +103,7 @@ public struct SDEFSuite {
 ///   - elements: The types of child objects this class can contain
 ///   - respondsTo: The commands this class can respond to
 ///   - isHidden: Whether this class is marked as hidden in the scripting interface
-public struct SDEFClass {
+public struct SDEFClass: Codable {
     /// The singular name of this class
     public let name: String
 
@@ -167,7 +167,7 @@ public struct SDEFClass {
 ///   - properties: Additional properties added by this extension
 ///   - elements: Additional element types added by this extension
 ///   - respondsTo: Additional commands the extended class responds to
-public struct SDEFClassExtension {
+public struct SDEFClassExtension: Codable {
     /// The name of the class being extended
     public let extends: String
 
@@ -209,7 +209,7 @@ public struct SDEFClassExtension {
 ///   - description: Optional description of the property's purpose
 ///   - access: The access permissions (read, write, or both)
 ///   - isHidden: Whether this property is hidden from normal scripting use
-public struct SDEFProperty {
+public struct SDEFProperty: Codable {
     /// The human-readable name of this property
     public let name: String
 
@@ -256,7 +256,7 @@ public struct SDEFProperty {
 /// - Parameters:
 ///   - type: The name of the class type that can be contained
 ///   - cocoaKey: The Cocoa key path used to access these elements
-public struct SDEFElement {
+public struct SDEFElement: Codable {
     /// The name of the class type that can be contained as an element
     public let type: String
 
@@ -284,7 +284,7 @@ public struct SDEFElement {
 ///   - baseType: The fundamental data type (text, integer, class name, etc.)
 ///   - isList: Whether this property contains a list of values
 ///   - isOptional: Whether this property's value can be nil
-public struct SDEFPropertyType {
+public struct SDEFPropertyType: Codable {
     /// The fundamental data type for this property
     public let baseType: String
 
@@ -320,7 +320,7 @@ public struct SDEFPropertyType {
 ///   - description: Optional description of the enumeration's purpose
 ///   - enumerators: The constant values defined within this enumeration
 ///   - isHidden: Whether this enumeration is hidden from normal scripting use
-public struct SDEFEnumeration {
+public struct SDEFEnumeration: Codable {
     /// The name of this enumeration type
     public let name: String
 
@@ -364,7 +364,7 @@ public struct SDEFEnumeration {
 ///   - code: The four-character Apple Event code for this enumerator
 ///   - description: Optional description of what this constant represents
 ///   - stringValue: Optional string value used for Cocoa bindings
-public struct SDEFEnumerator {
+public struct SDEFEnumerator: Codable {
     /// The name of this constant value
     public let name: String
 
@@ -407,7 +407,7 @@ public struct SDEFEnumerator {
 ///   - parameters: Additional named parameters for the command
 ///   - result: The type of value returned by the command
 ///   - isHidden: Whether this command is hidden from normal scripting use
-public struct SDEFCommand {
+public struct SDEFCommand: Codable {
     /// The human-readable name of this command
     public let name: String
 
@@ -463,7 +463,7 @@ public struct SDEFCommand {
 ///   - type: The data type expected for this parameter
 ///   - description: Optional description of the parameter's purpose
 ///   - isOptional: Whether this parameter must be provided
-public struct SDEFParameter {
+public struct SDEFParameter: Codable {
     /// The name of this parameter, or nil for direct parameters
     public let name: String?
 
