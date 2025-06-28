@@ -91,6 +91,15 @@ struct AppLocatorTests {
         let finderApp = SBApplication(bundleIdentifier: "com.apple.finder")
         #expect(finderApp != nil)
 
+        // Test that we can find Finder by name
+        let namedFinder: SBApplication? = findApp(named: "Finder")
+        #expect(namedFinder != nil)
+        #expect(namedFinder == finderApp)
+
+        // Test that Finder is running
+        let isRunning = namedFinder?.isRunning ?? false
+        #expect(isRunning)
+
         let invalidApp = SBApplication(bundleIdentifier: "com.invalid.app")
         // SBApplication may return nil for truly invalid bundle identifiers
         _ = invalidApp

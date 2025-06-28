@@ -13,6 +13,7 @@ public import ScriptingBridge
 @objc public protocol SBObjectProtocol: NSObjectProtocol {
     func get() -> Any!
 }
+extension SBObject: SBObjectProtocol {}
 
 /// Protocol for ScriptingBridge Applications.
 ///
@@ -22,3 +23,4 @@ public import ScriptingBridge
     var delegate: SBApplicationDelegate! { get set }
     var isRunning: Bool { get }
 }
+extension SBApplication: SBApplicationProtocol {}

@@ -22,14 +22,29 @@ import Foundation
 @inlinable
 public func findApp<T: SBApplicationProtocol>(named appName: String, inLocations: [URL] = defaultAppLocations) -> T? {
     let fm = FileManager.default
+    let hasAppSuffix = appName.hasSuffix(".app")
     for location in inLocations {
-        if let app = app(at: location, ofType: T.self) { return app }
+        guard let appURL = URL(string: appName, relativeTo: location) else { continue }
+        if let app = app(at: appURL, ofType: T.self) { return app }
+        if !hasAppSuffix,
+           let app = app(at: appURL.appendingPathExtension("app"), ofType: T.self) {
+            return app
+        }
         guard let enumerator = fm.enumerator(atPath: location.path) else { continue }
         while let name = enumerator.nextObject() as? String {
-            enumerator.skipDescendants()
-            guard !name.hasSuffix(".app"),
-                  let url = URL(string: name, relativeTo: location) else { continue }
+            if name.hasSuffix(".app") || enumerator.level > 2 {
+                enumerator.skipDescendants()
+            }
+            guard let url = URL(string: name, relativeTo: location) else { continue }
             var isDirObjCBool: ObjCBool = false
+            guard url.lastPathComponent == appName || url.lastPathComponent == appName + ".app" else {
+                guard let appURL = URL(string: appName, relativeTo: url) else { continue }
+                guard fm.fileExists(atPath: appURL.path, isDirectory: &isDirObjCBool), isDirObjCBool.boolValue else { continue }
+                if let app = app(at: appURL, ofType: T.self) {
+                    return app
+                }
+                continue
+            }
             guard fm.fileExists(atPath: url.path, isDirectory: &isDirObjCBool), isDirObjCBool.boolValue else { continue }
             if let app = app(at: url, ofType: T.self) {
                 return app
