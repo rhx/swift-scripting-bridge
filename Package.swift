@@ -5,13 +5,13 @@ import PackageDescription
 let package = Package(
     name: "ScriptingBridge",
     platforms: [
-        .macOS(.v12)
+        .macOS(.v13)
     ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "ScriptingBridge",
-            targets: ["ScriptingBridge"]),
+            name: "SwiftScriptingBridge",
+            targets: ["SwiftScriptingBridge"]),
         .library(
             name: "SDEF",
             targets: ["SDEF"]),
@@ -24,10 +24,8 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-syntax.git", from: "510.0.0"),
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "ScriptingBridge"),
+            name: "SwiftScriptingBridge"),
         .target(
             name: "SDEF",
             dependencies: [
@@ -41,8 +39,8 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]),
         .testTarget(
-            name: "ScriptingBridgeTests",
-            dependencies: ["ScriptingBridge"]),
+            name: "SwiftScriptingBridgeTests",
+            dependencies: ["SwiftScriptingBridge"]),
         .testTarget(
             name: "SDEFTests",
             dependencies: ["SDEF"]),
