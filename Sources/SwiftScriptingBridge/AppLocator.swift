@@ -26,6 +26,7 @@ public func findApp<T: SBApplicationProtocol>(named appName: String, inLocations
         if let app = app(at: location, ofType: T.self) { return app }
         guard let enumerator = fm.enumerator(atPath: location.path) else { continue }
         while let name = enumerator.nextObject() as? String {
+            enumerator.skipDescendants()
             guard !name.hasSuffix(".app"),
                   let url = URL(string: name, relativeTo: location) else { continue }
             var isDirObjCBool: ObjCBool = false
