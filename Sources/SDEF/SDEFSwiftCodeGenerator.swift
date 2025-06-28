@@ -128,14 +128,14 @@ public final class SDEFSwiftCodeGenerator {
         """
 
         if let description = enumeration.description {
-            code += "/// \(description)\n"
+            code += "/// \(description.capitalizingFirstLetter())\n"
         }
 
         code += "@objc public enum \(enumName): AEKeyword {\n"
 
         for enumerator in enumeration.enumerators {
             if let description = enumerator.description {
-                code += "    /// \(description)\n"
+                code += "    /// \(description.capitalizingFirstLetter())\n"
             }
 
             let caseName = swiftCaseName(enumerator.name)
@@ -158,7 +158,7 @@ public final class SDEFSwiftCodeGenerator {
         """
 
         if let description = sdefClass.description {
-            code += "/// \(description)\n"
+            code += "/// \(description.capitalizingFirstLetter())\n"
         }
 
         var inheritanceList = ["SBObjectProtocol"]
@@ -210,6 +210,12 @@ public final class SDEFSwiftCodeGenerator {
             if property.access != "r" { // Not read-only
                 let propertyName = swiftPropertyName(property.name)
                 let swiftType = swiftType(for: property.type)
+
+                // Generate DocC comment for setter
+                if let description = property.description {
+                    let setterDescription = "Set \(description.lowercaseFirstLetter())"
+                    code += "    /// \(setterDescription.capitalizingFirstLetter())\n"
+                }
 
                 // Fix setter naming for special cases
                 let setterName = switch property.name.lowercased() {
@@ -276,7 +282,7 @@ public final class SDEFSwiftCodeGenerator {
         var code = ""
 
         if let description = property.description {
-            code += "    /// \(description)\n"
+            code += "    /// \(description.capitalizingFirstLetter())\n"
         }
 
         let propertyName = swiftPropertyName(property.name)

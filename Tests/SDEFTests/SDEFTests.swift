@@ -314,4 +314,180 @@ struct SDEFTests {
         // Verify it doesn't contain the improperly spaced version
         #expect(!swiftCode.lowercased().contains("func audio cd tracks"))
     }
+
+    /// Tests that setter methods have proper DocC comments and capitalization.
+    ///
+    /// This test validates that when generating setter methods for writable properties,
+    /// the setter methods include properly formatted DocC comments that start with
+    /// "Set" and have proper capitalization, and that all DocC comments start with
+    /// a capital letter. Also verifies that enumeration and class descriptions are
+    /// properly capitalized.
+    @Test func testSetterDocCCommentsAndCapitalization() throws {
+        // Create a property with a description
+        let artistProperty = SDEFProperty(
+            name: "artist",
+            code: "pArt",
+            type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true),
+            description: "the artist of the CD",
+            access: "",  // Not read-only, so setter will be generated
+            isHidden: false
+        )
+
+        // Create a read-only property to verify no setter is generated
+        let readOnlyProperty = SDEFProperty(
+            name: "duration",
+            code: "pDur",
+            type: SDEFPropertyType(baseType: "integer", isList: false, isOptional: true),
+            description: "the duration of the track",
+            access: "r",  // Read-only
+            isHidden: false
+        )
+
+        // Create an enumeration with description
+        let testEnumeration = SDEFEnumeration(
+            name: "format",
+            code: "fmt ",
+            description: "the audio format",
+            enumerators: [
+                SDEFEnumerator(
+                    name: "MP3",
+                    code: "mp3 ",
+                    description: "MP3 audio format",
+                    stringValue: nil
+                )
+            ],
+            isHidden: false
+        )
+
+        let testClass = SDEFClass(
+            name: "CD",
+            pluralName: "CDs",
+            code: "cCD ",
+            description: "a compact disc",
+            inherits: nil,
+            properties: [artistProperty, readOnlyProperty],
+            elements: [],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let suite = SDEFSuite(
+            name: "Test Suite",
+            code: "test",
+            description: "A test suite",
+            classes: [testClass],
+            enumerations: [testEnumeration],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: false, verbose: false)
+        let swiftCode = try generator.generateCode()
+
+        // Verify property DocC comment is properly capitalized
+        #expect(swiftCode.contains("/// The artist of the CD"))
+
+        // Verify read-only property DocC comment is properly capitalized
+        #expect(swiftCode.contains("/// The duration of the track"))
+
+        // Verify setter DocC comment exists and is properly formatted
+        #expect(swiftCode.contains("/// Set the artist of the CD"))
+
+        // Verify setter method exists
+        #expect(swiftCode.contains("@objc optional func setArtist(_ artist: String?)"))
+
+        // Verify no setter is generated for read-only property
+        #expect(!swiftCode.contains("setDuration"))
+
+        // Verify class description is properly capitalized
+        #expect(swiftCode.contains("/// A compact disc"))
+
+        // Verify enumeration description is properly capitalized
+        #expect(swiftCode.contains("/// The audio format"))
+
+        // Verify enumerator description is properly capitalized
+        #expect(swiftCode.contains("/// MP3 audio format"))
+
+        // Verify original lowercase descriptions are not present
+        #expect(!swiftCode.contains("/// the artist of the CD"))
+        #expect(!swiftCode.contains("/// the duration of the track"))
+        #expect(!swiftCode.contains("/// a compact disc"))
+        #expect(!swiftCode.contains("/// the audio format"))
+    }
+
+    /// Tests a comprehensive example showing both camelCase and DocC comment fixes.
+    ///
+    /// This test demonstrates the complete solution for the reported issues:
+    /// - Element array methods are properly camelCased (e.g., audioCDTracks())
+    /// - Setter methods have proper DocC comments starting with "Set"
+    /// - All DocC comments start with capital letters
+    @Test func testComprehensiveExample() throws {
+        // Create the "audio CD track" class as mentioned in the issue
+        let audioCDTrackClass = SDEFClass(
+            name: "audio CD track",
+            pluralName: "audio CD tracks",
+            code: "cCDT",
+            description: "a track on an audio CD",
+            inherits: "track",
+            properties: [
+                SDEFProperty(
+                    name: "artist",
+                    code: "pArt",
+                    type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true),
+                    description: "the artist of the CD",
+                    access: "",
+                    isHidden: false
+                )
+            ],
+            elements: [],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        // Create a container class that has audio CD tracks as elements
+        let cdClass = SDEFClass(
+            name: "compact disc",
+            pluralName: "compact discs",
+            code: "cCD ",
+            description: "a compact disc",
+            inherits: nil,
+            properties: [],
+            elements: [SDEFElement(type: "audio CD track", cocoaKey: nil)],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let suite = SDEFSuite(
+            name: "Audio Suite",
+            code: "audi",
+            description: "audio management suite",
+            classes: [audioCDTrackClass, cdClass],
+            enumerations: [],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Audio", shouldGenerateClassNamesEnum: false, verbose: false)
+        let swiftCode = try generator.generateCode()
+
+        // Verify the main issue is fixed: element array method is properly camelCased
+        #expect(swiftCode.contains("@objc optional func audioCDTracks() -> SBElementArray"))
+        #expect(!swiftCode.contains("audio cd tracks()"))
+
+        // Verify setter has proper DocC comment
+        #expect(swiftCode.contains("/// Set the artist of the CD"))
+        #expect(swiftCode.contains("@objc optional func setArtist(_ artist: String?)"))
+
+        // Verify all DocC comments are properly capitalized
+        #expect(swiftCode.contains("/// A track on an audio CD"))
+        #expect(swiftCode.contains("/// A compact disc"))
+        #expect(swiftCode.contains("/// The artist of the CD"))
+
+        // Verify original lowercase descriptions are not present
+        #expect(!swiftCode.contains("/// a track on an audio CD"))
+        #expect(!swiftCode.contains("/// a compact disc"))
+        #expect(!swiftCode.contains("/// the artist of the CD"))
+    }
 }
