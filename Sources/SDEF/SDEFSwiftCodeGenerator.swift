@@ -245,7 +245,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         for property in sdefClass.properties {
             if property.access == "w" { // Write-only properties need explicit setter methods
                 let propertyName = swiftPropertyName(property.name)
-                let swiftType = swiftType(for: property.type)
+                let swiftType = swiftSetterParameterType(for: property.type)
 
                 // Generate DocC comment for setter
                 if let description = property.description {
@@ -408,51 +408,24 @@ public typealias \(baseName)ElementArray = SBElementArray
             baseType = "[\(baseType)]"
         }
 
-        // For @objc compatibility, primitive types, enums, geometry types, and special types cannot be optional
-        let isPrimitive = isPrimitiveType(propertyType.baseType)
-        let isEnum = isEnumType(propertyType.baseType)
-        let isGeometry = isGeometryType(propertyType.baseType)
-        let isSpecial = isSpecialType(propertyType.baseType)
+        // For @objc optional properties, never make types optional to avoid double optionals
+        // The @objc optional already provides the optionality
+        return baseType
+    }
 
-        if propertyType.isOptional && !isPrimitive && !isEnum && !isGeometry && !isSpecial {
+    private func swiftSetterParameterType(for propertyType: SDEFPropertyType) -> String {
+        var baseType = swiftTypeName(propertyType.baseType)
+
+        if propertyType.isList {
+            baseType = "[\(baseType)]"
+        }
+
+        // For setter method parameters, preserve optionality as it's separate from @objc optional
+        if propertyType.isOptional {
             baseType += "?"
         }
 
         return baseType
-    }
-
-    private func isPrimitiveType(_ type: String) -> Bool {
-        switch type.lowercased() {
-        case "integer", "int", "real", "double", "boolean", "bool", "double integer":
-            return true
-        default:
-            return false
-        }
-    }
-
-    private func isEnumType(_ type: String) -> Bool {
-        // Check if this type is one of our generated enums
-        return model.suites.flatMap { $0.enumerations }.contains { enumeration in
-            swiftTypeName(enumeration.name) == swiftTypeName(type)
-        }
-    }
-
-    private func isGeometryType(_ type: String) -> Bool {
-        switch type.lowercased() {
-        case "rectangle", "point", "size":
-            return true
-        default:
-            return false
-        }
-    }
-
-    private func isSpecialType(_ type: String) -> Bool {
-        switch type.lowercased() {
-        case "type", "picture":
-            return true
-        default:
-            return false
-        }
     }
 
     private func swiftTypeName(_ objcType: String) -> String {

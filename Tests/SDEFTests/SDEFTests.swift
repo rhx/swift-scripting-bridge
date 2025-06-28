@@ -191,7 +191,7 @@ struct SDEFTests {
         #expect(swiftCode.contains("public typealias TestApplication = SBApplication"))
         #expect(swiftCode.contains("@objc public protocol TestWindow:"))
         #expect(swiftCode.contains("/// The name property"))
-        #expect(swiftCode.contains("@objc optional var name: String?"))
+        #expect(swiftCode.contains("@objc optional var name: String"))
         #expect(swiftCode.contains("extension SBObject: TestWindow"))
     }
 
@@ -227,7 +227,7 @@ struct SDEFTests {
         let swiftCode = try generator.generateCode()
 
         #expect(swiftCode.contains("TestDocument"))
-        #expect(swiftCode.contains("@objc optional var name: String?"))
+        #expect(swiftCode.contains("@objc optional var name: String"))
     }
 
     /// Tests error handling for invalid XML input.
