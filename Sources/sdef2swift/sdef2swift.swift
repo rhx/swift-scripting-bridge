@@ -106,7 +106,7 @@ struct SDEFToSwift: AsyncParsableCommand {
         }
 
         // Determine base name
-        let finalBasename = basename ?? sdefURL.deletingPathExtension().lastPathComponent
+        let finalBasename = basename ?? sdefURL.deletingPathExtension().lastPathComponent.split(separator: ".").last.map { String($0) } ?? ""
 
         // Validate base name
         guard !finalBasename.isEmpty && finalBasename.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else {
