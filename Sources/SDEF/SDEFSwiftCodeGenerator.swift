@@ -69,6 +69,7 @@ public final class SDEFSwiftCodeGenerator {
         //
         import Foundation
         import ScriptingBridge
+        import AppKit
 
         /// Protocol for ScriptingBridge Objects.
         ///
@@ -132,15 +133,25 @@ public final class SDEFSwiftCodeGenerator {
     }
 
     private func generateTypeAliases() -> String {
-        return """
+        // Don't generate typealias for Application if there's also an Application protocol
+        let hasApplicationClass = model.suites.flatMap { $0.classes }.contains { $0.name.lowercased() == "application" }
 
-        // MARK: - Type Aliases
+        var aliases = """
 
-        public typealias \(baseName)Application = SBApplication
-        public typealias \(baseName)Object = SBObject
-        public typealias \(baseName)ElementArray = SBElementArray
+// MARK: - Type Aliases
 
-        """
+"""
+
+        if !hasApplicationClass {
+            aliases += "public typealias \(baseName)Application = SBApplication\n"
+        }
+
+        aliases += """
+public typealias \(baseName)Object = SBObject
+public typealias \(baseName)ElementArray = SBElementArray
+
+"""
+        return aliases
     }
 
     private func generateEnumeration(_ enumeration: SDEFEnumeration) -> String {
@@ -230,9 +241,9 @@ public final class SDEFSwiftCodeGenerator {
             code += "    @objc optional func \(methodName)() -> SBElementArray\n"
         }
 
-        // Generate setter methods for writable properties
+        // Generate setter methods only for write-only properties
         for property in sdefClass.properties {
-            if property.access != "r" { // Not read-only
+            if property.access == "w" { // Write-only properties need explicit setter methods
                 let propertyName = swiftPropertyName(property.name)
                 let swiftType = swiftType(for: property.type)
 
@@ -332,9 +343,16 @@ public final class SDEFSwiftCodeGenerator {
             return "" // Skip generating property for id, it will be handled as a method
         }
 
-        let readOnly = property.access == "r" ? " { get }" : " { get set }"
+        let accessors = switch property.access {
+        case "r":
+            " { get }"
+        case "w":
+            " { set }"
+        default:
+            " { get set }"
+        }
 
-        code += "    @objc optional var \(propertyName): \(swiftType)\(readOnly)\n"
+        code += "    @objc optional var \(propertyName): \(swiftType)\(accessors)\n"
 
         return code
     }
@@ -390,11 +408,51 @@ public final class SDEFSwiftCodeGenerator {
             baseType = "[\(baseType)]"
         }
 
-        if propertyType.isOptional {
+        // For @objc compatibility, primitive types, enums, geometry types, and special types cannot be optional
+        let isPrimitive = isPrimitiveType(propertyType.baseType)
+        let isEnum = isEnumType(propertyType.baseType)
+        let isGeometry = isGeometryType(propertyType.baseType)
+        let isSpecial = isSpecialType(propertyType.baseType)
+
+        if propertyType.isOptional && !isPrimitive && !isEnum && !isGeometry && !isSpecial {
             baseType += "?"
         }
 
         return baseType
+    }
+
+    private func isPrimitiveType(_ type: String) -> Bool {
+        switch type.lowercased() {
+        case "integer", "int", "real", "double", "boolean", "bool", "double integer":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func isEnumType(_ type: String) -> Bool {
+        // Check if this type is one of our generated enums
+        return model.suites.flatMap { $0.enumerations }.contains { enumeration in
+            swiftTypeName(enumeration.name) == swiftTypeName(type)
+        }
+    }
+
+    private func isGeometryType(_ type: String) -> Bool {
+        switch type.lowercased() {
+        case "rectangle", "point", "size":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func isSpecialType(_ type: String) -> Bool {
+        switch type.lowercased() {
+        case "type", "picture":
+            return true
+        default:
+            return false
+        }
     }
 
     private func swiftTypeName(_ objcType: String) -> String {
@@ -425,6 +483,18 @@ public final class SDEFSwiftCodeGenerator {
             return "NSPoint"
         case "size":
             return "NSSize"
+        case "specifier":
+            return "SBObject"
+        case "location specifier":
+            return "SBObject"
+        case "type":
+            return "OSType"
+        case "picture":
+            return "NSImage"
+        case "enum":
+            return "OSType"
+        case "double integer":
+            return "Int64"
         default:
             // Assume it's a class name - clean up the name
             let cleanType = swiftClassName(objcType)
@@ -437,7 +507,7 @@ public final class SDEFSwiftCodeGenerator {
         let words = name.components(separatedBy: CharacterSet(charactersIn: " -_"))
             .filter { !$0.isEmpty }
 
-        guard !words.isEmpty else { return name }
+        guard !words.isEmpty else { return escapeReservedKeyword(name) }
 
         // Process each word
         var processedWords: [String] = []
@@ -469,7 +539,28 @@ public final class SDEFSwiftCodeGenerator {
             }
         }
 
-        return processedWords.joined()
+        let result = processedWords.joined()
+        return escapeReservedKeyword(result)
+    }
+
+    private func escapeReservedKeyword(_ name: String) -> String {
+        let swiftKeywords = [
+            "associatedtype", "class", "deinit", "enum", "extension", "fileprivate", "func",
+            "import", "init", "inout", "internal", "let", "open", "operator", "private",
+            "protocol", "public", "rethrows", "static", "struct", "subscript", "typealias",
+            "var", "break", "case", "continue", "default", "defer", "do", "else", "fallthrough",
+            "for", "guard", "if", "in", "repeat", "return", "switch", "where", "while",
+            "as", "Any", "catch", "false", "is", "nil", "super", "self", "Self", "throw",
+            "throws", "true", "try", "associativity", "convenience", "dynamic", "didSet",
+            "final", "get", "infix", "indirect", "lazy", "left", "mutating", "none",
+            "nonmutating", "optional", "override", "postfix", "precedence", "prefix",
+            "Protocol", "required", "right", "set", "Type", "unowned", "weak", "willSet"
+        ]
+
+        if swiftKeywords.contains(name) {
+            return "`\(name)`"
+        }
+        return name
     }
 
     private func swiftMethodName(_ name: String) -> String {

@@ -323,13 +323,13 @@ struct SDEFTests {
     /// a capital letter. Also verifies that enumeration and class descriptions are
     /// properly capitalized.
     @Test func testSetterDocCCommentsAndCapitalization() throws {
-        // Create a property with a description
+        // Create a write-only property with a description
         let artistProperty = SDEFProperty(
             name: "artist",
             code: "pArt",
             type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true),
             description: "the artist of the CD",
-            access: "",  // Not read-only, so setter will be generated
+            access: "w",  // Write-only, so setter will be generated
             isHidden: false
         )
 
@@ -436,7 +436,7 @@ struct SDEFTests {
                     code: "pArt",
                     type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true),
                     description: "the artist of the CD",
-                    access: "",
+                    access: "w",
                     isHidden: false
                 )
             ],
@@ -667,7 +667,7 @@ struct SDEFTests {
                     code: "pArt",
                     type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true),
                     description: "the artist of the CD",
-                    access: "",
+                    access: "w",
                     isHidden: false
                 )
             ],
