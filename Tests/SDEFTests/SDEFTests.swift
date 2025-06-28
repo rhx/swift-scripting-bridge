@@ -182,7 +182,7 @@ struct SDEFTests {
         )
 
         let model = SDEFModel(suites: [suite])
-        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", verbose: false)
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: true, verbose: false)
         let swiftCode = try generator.generateCode()
 
         // Verify basic structure
@@ -259,5 +259,71 @@ struct SDEFTests {
         // Properties with missing codes should get empty strings
         let property = model.suites.first?.classes.first?.properties.first
         #expect(property?.code == "")
+    }
+
+    /// Tests class names enum generation functionality.
+    ///
+    /// This test verifies that the class names enum is correctly generated when enabled
+    /// and omitted when disabled. It checks both the structure and content of the
+    /// generated enum, including proper transformation of class names to enum cases.
+    @Test func testClassNamesEnumGeneration() throws {
+        let testClass1 = SDEFClass(
+            name: "document",
+            pluralName: "documents",
+            code: "docu",
+            description: "A document",
+            inherits: nil,
+            properties: [],
+            elements: [],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let testClass2 = SDEFClass(
+            name: "attribute-run",
+            pluralName: "attribute runs",
+            code: "catt",
+            description: "An attribute run",
+            inherits: nil,
+            properties: [],
+            elements: [],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let classExtension = SDEFClassExtension(
+            extends: "application",
+            properties: [],
+            elements: [],
+            respondsTo: []
+        )
+
+        let suite = SDEFSuite(
+            name: "Test Suite",
+            code: "test",
+            description: "A test suite",
+            classes: [testClass1, testClass2],
+            enumerations: [],
+            commands: [],
+            classExtensions: [classExtension]
+        )
+
+        let model = SDEFModel(suites: [suite])
+
+        // Test with enum generation enabled (default)
+        let generatorWithEnum = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: true, verbose: false)
+        let swiftCodeWithEnum = try generatorWithEnum.generateCode()
+
+        #expect(swiftCodeWithEnum.contains("public enum TestScriptingClassNames: String, CaseIterable"))
+        #expect(swiftCodeWithEnum.contains("case document = \"document\""))
+        #expect(swiftCodeWithEnum.contains("case attributeRun = \"attribute-run\""))
+        #expect(swiftCodeWithEnum.contains("case application = \"application\""))
+
+        // Test with enum generation disabled
+        let generatorWithoutEnum = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: false, verbose: false)
+        let swiftCodeWithoutEnum = try generatorWithoutEnum.generateCode()
+
+        #expect(!swiftCodeWithoutEnum.contains("public enum TestScriptingClassNames"))
+        #expect(!swiftCodeWithoutEnum.contains("case document = \"document\""))
     }
 }

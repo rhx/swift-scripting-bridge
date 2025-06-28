@@ -22,6 +22,7 @@ import SwiftSyntaxBuilder
 public final class SDEFSwiftCodeGenerator {
     private let model: SDEFModel
     private let baseName: String
+    private let shouldGenerateClassNamesEnum: Bool
     private let verbose: Bool
 
     /// Creates a new Swift code generator with the specified configuration.
@@ -34,10 +35,12 @@ public final class SDEFSwiftCodeGenerator {
     /// - Parameters:
     ///   - model: The parsed SDEF model containing all scripting definitions
     ///   - basename: The prefix to use for all generated Swift types
+    ///   - shouldGenerateClassNamesEnum: Whether to generate an enum containing all scripting class names
     ///   - verbose: Whether to enable detailed logging during code generation
-    public init(model: SDEFModel, basename: String, verbose: Bool) {
+    public init(model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool, verbose: Bool) {
         self.model = model
         self.baseName = basename
+        self.shouldGenerateClassNamesEnum = shouldGenerateClassNamesEnum
         self.verbose = verbose
     }
 
@@ -72,6 +75,11 @@ public final class SDEFSwiftCodeGenerator {
 
         // Generate standard protocols and enums first
         code += generateApplicationProtocol()
+
+        // Generate class names enum if requested
+        if shouldGenerateClassNamesEnum {
+            code += generateClassNamesEnum()
+        }
 
         // Generate enumerations
         for suite in model.suites {
@@ -411,6 +419,76 @@ public final class SDEFSwiftCodeGenerator {
             return code.hasPrefix("0x") ? code : "0x\(code)"
         }
         return "'\(code)'"
+    }
+
+    /// Generates a public enum containing all scripting class names from the SDEF.
+    ///
+    /// This method creates a CaseIterable, RawRepresentable enum that encompasses all
+    /// scripting class names found in the SDEF file, including both regular classes
+    /// and class extensions. The enum cases are generated using a transformation
+    /// similar to the Python reference implementation, converting class names to
+    /// proper Swift enum case names.
+    ///
+    /// - Returns: Swift code for the class names enumeration
+    private func generateClassNamesEnum() -> String {
+        var classNames = Set<String>()
+        
+        // Collect all class names (parser already filtered hidden classes if needed)
+        for suite in model.suites {
+            for sdefClass in suite.classes {
+                classNames.insert(sdefClass.name)
+            }
+            
+            // Also collect class extension names
+            for classExtension in suite.classExtensions {
+                classNames.insert(classExtension.extends)
+            }
+        }
+        
+        // Sort names for consistent output
+        let sortedNames = classNames.sorted()
+        
+        var code = """
+        
+        /// An enumeration of all scripting class names available in this application.
+        ///
+        /// This enum provides a type-safe way to reference all scriptable classes defined
+        /// in the application's scripting dictionary. Each case corresponds to a class
+        /// that can be accessed through the Scripting Bridge framework.
+        public enum \(baseName)ScriptingClassNames: String, CaseIterable {
+        
+        """
+        
+        for name in sortedNames {
+            let caseName = transformToEnumCase(name)
+            code += "    case \(caseName) = \"\(name)\"\n"
+        }
+        
+        code += "}\n\n"
+        
+        return code
+    }
+    
+    /// Transforms a class name into a proper Swift enum case name.
+    ///
+    /// This method implements the same transformation logic as the Python reference,
+    /// converting class names by removing quotes and hyphens, capitalizing words,
+    /// and then converting to camelCase for the enum case.
+    ///
+    /// - Parameter name: The original class name from the SDEF
+    /// - Returns: A properly formatted Swift enum case name
+    private func transformToEnumCase(_ name: String) -> String {
+        // Remove quotes and replace hyphens with spaces
+        let transformed = name
+            .replacingOccurrences(of: "\"", with: "")
+            .replacingOccurrences(of: "-", with: " ")
+        
+        // Capitalize each word and remove spaces
+        let words = transformed.components(separatedBy: " ")
+        let capitalized = words.map { $0.capitalizingFirstLetter() }.joined()
+        
+        // Convert to camelCase (first letter lowercase)
+        return capitalized.lowercaseFirstLetter()
     }
 }
 

@@ -22,6 +22,7 @@ public final class SDEFSwiftGenerator {
     private let basename: String
     private let outputDirectory: String
     private let includeHidden: Bool
+    private let generateClassNamesEnum: Bool
     private let verbose: Bool
 
     /// Creates a new SDEF Swift generator with the specified configuration.
@@ -36,12 +37,14 @@ public final class SDEFSwiftGenerator {
     ///   - basename: The prefix to use for all generated Swift types
     ///   - outputDirectory: The directory where the generated file should be written
     ///   - includeHidden: Whether to include definitions marked as hidden in the SDEF
+    ///   - generateClassNamesEnum: Whether to generate an enum containing all scripting class names
     ///   - verbose: Whether to provide detailed logging during the generation process
-    public init(sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool, verbose: Bool) {
+    public init(sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool, generateClassNamesEnum: Bool, verbose: Bool) {
         self.sdefURL = sdefURL
         self.basename = basename
         self.outputDirectory = outputDirectory
         self.includeHidden = includeHidden
+        self.generateClassNamesEnum = generateClassNamesEnum
         self.verbose = verbose
     }
 
@@ -94,7 +97,7 @@ public final class SDEFSwiftGenerator {
         }
 
         // Generate Swift code
-        let codeGenerator = SDEFSwiftCodeGenerator(model: sdefModel, basename: basename, verbose: verbose)
+        let codeGenerator = SDEFSwiftCodeGenerator(model: sdefModel, basename: basename, shouldGenerateClassNamesEnum: generateClassNamesEnum, verbose: verbose)
         let swiftCode: String
         do {
             swiftCode = try codeGenerator.generateCode()

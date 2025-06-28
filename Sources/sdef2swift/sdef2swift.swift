@@ -67,6 +67,10 @@ struct SDEFToSwift: AsyncParsableCommand {
     @Flag(name: .shortAndLong, help: "Enable verbose output")
     var verbose = false
 
+    /// Whether to generate class names enum
+    @Flag(name: .long, inversion: .prefixedNo, help: "Generate a public enum of scripting class names (default: enabled)")
+    var generateClassNamesEnum = true
+
     /// Executes the main command logic to generate Swift code from the SDEF file.
     ///
     /// This method handles the complete workflow from validating input parameters to generating
@@ -116,7 +120,7 @@ struct SDEFToSwift: AsyncParsableCommand {
         }
 
         do {
-            let generator = SDEFSwiftGenerator(sdefURL: sdefURL, basename: finalBasename, outputDirectory: outputDirectory, includeHidden: includeHidden, verbose: verbose)
+            let generator = SDEFSwiftGenerator(sdefURL: sdefURL, basename: finalBasename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, verbose: verbose)
             let outputURL = try await generator.generate()
             print("Generated Swift file: \(outputURL.path)")
 
