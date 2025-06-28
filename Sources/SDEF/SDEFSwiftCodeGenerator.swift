@@ -23,6 +23,7 @@ public final class SDEFSwiftCodeGenerator {
     private let model: SDEFModel
     private let baseName: String
     private let shouldGenerateClassNamesEnum: Bool
+    private let shouldGenerateStronglyTypedExtensions: Bool
     private let verbose: Bool
 
     /// Creates a new Swift code generator with the specified configuration.
@@ -36,11 +37,13 @@ public final class SDEFSwiftCodeGenerator {
     ///   - model: The parsed SDEF model containing all scripting definitions
     ///   - basename: The prefix to use for all generated Swift types
     ///   - shouldGenerateClassNamesEnum: Whether to generate an enum containing all scripting class names
+    ///   - shouldGenerateStronglyTypedExtensions: Whether to generate strongly typed accessor extensions
     ///   - verbose: Whether to enable detailed logging during code generation
-    public init(model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool, verbose: Bool) {
+    public init(model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, verbose: Bool) {
         self.model = model
         self.baseName = basename
         self.shouldGenerateClassNamesEnum = shouldGenerateClassNamesEnum
+        self.shouldGenerateStronglyTypedExtensions = shouldGenerateStronglyTypedExtensions
         self.verbose = verbose
     }
 
@@ -100,6 +103,11 @@ public final class SDEFSwiftCodeGenerator {
             }
         }
 
+        // Generate strongly typed extensions if requested
+        if shouldGenerateStronglyTypedExtensions {
+            code += generateStronglyTypedExtensions()
+        }
+
         // Generate SBApplication extension
         code += generateSBApplicationExtension()
 
@@ -149,7 +157,7 @@ public final class SDEFSwiftCodeGenerator {
     }
 
     private func generateClassProtocol(_ sdefClass: SDEFClass, suite: SDEFSuite) -> String {
-        let protocolName = "\(baseName)\(sdefClass.name.capitalizingFirstLetter().replacingOccurrences(of: " ", with: ""))"
+        let protocolName = "\(baseName)\(swiftClassName(sdefClass.name))"
 
         var code = """
 
@@ -169,7 +177,7 @@ public final class SDEFSwiftCodeGenerator {
         }
 
         if let inherits = sdefClass.inherits {
-            let cleanInherits = inherits.capitalizingFirstLetter().replacingOccurrences(of: " ", with: "")
+            let cleanInherits = swiftClassName(inherits)
             inheritanceList.append("\(baseName)\(cleanInherits)")
         }
 
@@ -224,7 +232,7 @@ public final class SDEFSwiftCodeGenerator {
                 case "url":
                     "URL"
                 default:
-                    property.name.capitalizingFirstLetter().replacingOccurrences(of: " ", with: "")
+                    swiftClassName(property.name)
                 }
 
                 code += "    @objc optional func set\(setterName)(_ \(propertyName): \(swiftType))\n"
@@ -244,7 +252,7 @@ public final class SDEFSwiftCodeGenerator {
     }
 
     private func generateClassExtensionProtocol(_ classExtension: SDEFClassExtension, suite: SDEFSuite) -> String {
-        let baseTypeName = classExtension.extends.capitalizingFirstLetter().replacingOccurrences(of: " ", with: "")
+        let baseTypeName = swiftClassName(classExtension.extends)
         let protocolName = "\(baseName)\(baseTypeName)"
 
         var code = """
@@ -262,7 +270,21 @@ public final class SDEFSwiftCodeGenerator {
 
         // Generate element arrays
         for element in classExtension.elements {
-            let methodName = element.type.lowercased() + "s"
+            // Look up the class to get its plural name
+            var methodName: String
+
+            // Find the class definition for this element type
+            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type }
+
+            if let elementClass = elementClass, let pluralName = elementClass.pluralName {
+                // Use the defined plural name and convert to camelCase
+                methodName = swiftMethodName(pluralName)
+            } else {
+                // Fallback: use the type name + "s" and convert to camelCase
+                let pluralForm = element.type + "s"
+                methodName = swiftMethodName(pluralForm)
+            }
+
             code += "    @objc optional func \(methodName)() -> SBElementArray\n"
         }
 
@@ -387,32 +409,49 @@ public final class SDEFSwiftCodeGenerator {
             return "NSSize"
         default:
             // Assume it's a class name - clean up the name
-            let cleanType = objcType
-                .capitalizingFirstLetter()
-                .replacingOccurrences(of: " ", with: "")
-                .replacingOccurrences(of: "-", with: "")
+            let cleanType = swiftClassName(objcType)
             return "\(baseName)\(cleanType)"
         }
     }
 
     private func swiftPropertyName(_ name: String) -> String {
-        let sanitised = name
-            .replacingOccurrences(of: " ", with: "")
-            .replacingOccurrences(of: "-", with: "")
-            .replacingOccurrences(of: "_", with: "")
+        // Split by spaces, hyphens, and underscores
+        let words = name.components(separatedBy: CharacterSet(charactersIn: " -_"))
+            .filter { !$0.isEmpty }
 
-        // Handle special cases for better naming
-        let properName = sanitised.lowercaseFirstLetter()
+        guard !words.isEmpty else { return name }
 
-        // Fix common naming issues
-        switch properName {
-        case "currenttab":
-            return "currentTab"
-        case "url", "uRL":
-            return "url"
-        default:
-            return properName
+        // Process each word
+        var processedWords: [String] = []
+
+        for (index, word) in words.enumerated() {
+            let cleanWord = word.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleanWord.isEmpty else { continue }
+
+            // Handle special cases that should remain uppercase
+            let upperWord = cleanWord.uppercased()
+            if index == 0 {
+                // First word should be lowercase, except for special cases
+                if upperWord == "URL" || upperWord == "UUID" || upperWord == "ID" ||
+                   upperWord == "HTTP" || upperWord == "HTTPS" || upperWord == "XML" ||
+                   upperWord == "HTML" || upperWord == "PDF" || upperWord == "UI" ||
+                   upperWord == "API" {
+                    processedWords.append(cleanWord.lowercased())
+                } else {
+                    processedWords.append(cleanWord.lowercased())
+                }
+            } else if upperWord == "CD" || upperWord == "DVD" || upperWord == "URL" ||
+                      upperWord == "ID" || upperWord == "UUID" || upperWord == "HTTP" ||
+                      upperWord == "HTTPS" || upperWord == "XML" || upperWord == "HTML" ||
+                      upperWord == "PDF" || upperWord == "UI" || upperWord == "API" {
+                processedWords.append(upperWord)
+            } else {
+                // Subsequent words should be capitalized
+                processedWords.append(cleanWord.capitalizingFirstLetter())
+            }
         }
+
+        return processedWords.joined()
     }
 
     private func swiftMethodName(_ name: String) -> String {
@@ -446,6 +485,100 @@ public final class SDEFSwiftCodeGenerator {
         }
 
         return processedWords.joined()
+    }
+
+    private func swiftClassName(_ name: String) -> String {
+        // Split by spaces, hyphens, and underscores
+        let words = name.components(separatedBy: CharacterSet(charactersIn: " -_"))
+            .filter { !$0.isEmpty }
+
+        guard !words.isEmpty else { return name }
+
+        // Process each word by capitalizing first letter
+        var processedWords: [String] = []
+
+        for word in words {
+            let cleanWord = word.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleanWord.isEmpty else { continue }
+
+            // Handle special cases that should remain uppercase
+            let upperWord = cleanWord.uppercased()
+            if upperWord == "CD" || upperWord == "DVD" || upperWord == "URL" ||
+               upperWord == "ID" || upperWord == "UUID" || upperWord == "HTTP" ||
+               upperWord == "HTTPS" || upperWord == "XML" || upperWord == "HTML" ||
+               upperWord == "PDF" || upperWord == "UI" || upperWord == "API" {
+                processedWords.append(upperWord)
+            } else {
+                // All words should be capitalized for type names
+                processedWords.append(cleanWord.capitalizingFirstLetter())
+            }
+        }
+
+        return processedWords.joined()
+    }
+
+    private func generateStronglyTypedExtensions() -> String {
+        var code = """
+
+        // MARK: - Strongly Typed Extensions
+
+        """
+
+        for suite in model.suites {
+            for sdefClass in suite.classes {
+                if !sdefClass.elements.isEmpty {
+                    code += generateStronglyTypedExtension(sdefClass, suite: suite)
+                }
+            }
+        }
+
+        return code
+    }
+
+    private func generateStronglyTypedExtension(_ sdefClass: SDEFClass, suite: SDEFSuite) -> String {
+        let protocolName = "\(baseName)\(swiftClassName(sdefClass.name))"
+
+        var code = """
+
+        /// Strongly typed accessors for \(sdefClass.name)
+        public extension \(protocolName) {
+        """
+
+        for element in sdefClass.elements {
+            // Look up the class to get its plural name and generate typed accessor
+            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type }
+
+            var methodName: String
+            var propertyName: String
+
+            if let elementClass = elementClass, let pluralName = elementClass.pluralName {
+                // Use the defined plural name
+                methodName = swiftMethodName(pluralName)
+                propertyName = swiftPropertyName(pluralName)
+            } else {
+                // Fallback: use the type name + "s"
+                let pluralForm = element.type + "s"
+                methodName = swiftMethodName(pluralForm)
+                propertyName = swiftPropertyName(pluralForm)
+            }
+
+            let elementTypeName = "\(baseName)\(swiftClassName(element.type))"
+
+            code += """
+
+                /// Strongly typed accessor for \(element.type) elements
+                var \(propertyName): [\(elementTypeName)] {
+                    \(methodName)?() as? [\(elementTypeName)] ?? []
+                }
+            """
+        }
+
+        code += """
+
+        }
+        """
+
+        return code
     }
 
     private func swiftCaseName(_ name: String) -> String {

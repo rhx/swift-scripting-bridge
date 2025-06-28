@@ -68,8 +68,12 @@ struct SDEFToSwift: AsyncParsableCommand {
     var verbose = false
 
     /// Whether to generate class names enum
-    @Flag(name: .long, inversion: .prefixedNo, help: "Generate a public enum of scripting class names (default: enabled)")
+    @Flag(name: [.customShort("e", allowingJoined: true), .long], inversion: .prefixedNo, help: "Generate a public enum of scripting class names")
     var generateClassNamesEnum = true
+
+    /// Whether to generate strongly typed extensions
+    @Flag(name: [.customShort("x", allowingJoined: true), .long], inversion: .prefixedNo, help: "Generate strongly typed accessor extensions for element arrays")
+    var generateStronglyTypedExtensions = true
 
     /// Executes the main command logic to generate Swift code from the SDEF file.
     ///
@@ -120,7 +124,7 @@ struct SDEFToSwift: AsyncParsableCommand {
         }
 
         do {
-            let generator = SDEFSwiftGenerator(sdefURL: sdefURL, basename: finalBasename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, verbose: verbose)
+            let generator = SDEFSwiftGenerator(sdefURL: sdefURL, basename: finalBasename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: generateStronglyTypedExtensions, verbose: verbose)
             let outputURL = try await generator.generate()
             print("Generated Swift file: \(outputURL.path)")
 
@@ -133,5 +137,3 @@ struct SDEFToSwift: AsyncParsableCommand {
         }
     }
 }
-
-

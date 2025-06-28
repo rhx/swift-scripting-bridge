@@ -182,7 +182,7 @@ struct SDEFTests {
         )
 
         let model = SDEFModel(suites: [suite])
-        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: false, verbose: false)
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: false, shouldGenerateStronglyTypedExtensions: false, verbose: false)
         let swiftCode = try generator.generateCode()
 
         // Verify basic structure
@@ -305,7 +305,7 @@ struct SDEFTests {
         )
 
         let model = SDEFModel(suites: [suite])
-        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: false, verbose: false)
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: false, shouldGenerateStronglyTypedExtensions: false, verbose: false)
         let swiftCode = try generator.generateCode()
 
         // Verify that the generated method name is properly camelCased
@@ -382,7 +382,7 @@ struct SDEFTests {
         )
 
         let model = SDEFModel(suites: [suite])
-        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: false, verbose: false)
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: false, shouldGenerateStronglyTypedExtensions: false, verbose: false)
         let swiftCode = try generator.generateCode()
 
         // Verify property DocC comment is properly capitalized
@@ -469,7 +469,7 @@ struct SDEFTests {
         )
 
         let model = SDEFModel(suites: [suite])
-        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Audio", shouldGenerateClassNamesEnum: false, verbose: false)
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Audio", shouldGenerateClassNamesEnum: false, shouldGenerateStronglyTypedExtensions: false, verbose: false)
         let swiftCode = try generator.generateCode()
 
         // Verify the main issue is fixed: element array method is properly camelCased
@@ -489,5 +489,253 @@ struct SDEFTests {
         #expect(!swiftCode.contains("/// a track on an audio CD"))
         #expect(!swiftCode.contains("/// a compact disc"))
         #expect(!swiftCode.contains("/// the artist of the CD"))
+    }
+
+    /// Tests protocol name capitalization for multi-word class names.
+    ///
+    /// This test verifies that class names with multiple words are properly
+    /// converted to PascalCase for protocol names, fixing issues where names
+    /// like "radio tuner playlist" became "MusicRadiotunerplaylist" instead
+    /// of the correct "MusicRadioTunerPlaylist".
+    @Test func testProtocolNameCapitalization() throws {
+        let radioTunerPlaylistClass = SDEFClass(
+            name: "radio tuner playlist",
+            pluralName: "radio tuner playlists",
+            code: "cRTP",
+            description: "the radio tuner playlist",
+            inherits: "playlist",
+            properties: [],
+            elements: [],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let urlTrackClass = SDEFClass(
+            name: "URL track",
+            pluralName: "URL tracks",
+            code: "cURT",
+            description: "a track representing a network stream",
+            inherits: "track",
+            properties: [],
+            elements: [],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let suite = SDEFSuite(
+            name: "Music Suite",
+            code: "musi",
+            description: "Music application suite",
+            classes: [radioTunerPlaylistClass, urlTrackClass],
+            enumerations: [],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Music", shouldGenerateClassNamesEnum: false, shouldGenerateStronglyTypedExtensions: false, verbose: false)
+        let swiftCode = try generator.generateCode()
+
+        // Verify correct protocol name capitalization
+        #expect(swiftCode.contains("@objc public protocol MusicRadioTunerPlaylist:"))
+        #expect(swiftCode.contains("@objc public protocol MusicURLTrack:"))
+
+        // Verify incorrect capitalization is not present
+        #expect(!swiftCode.contains("MusicRadiotunerplaylist"))
+        #expect(!swiftCode.contains("MusicUrltrack"))
+    }
+
+    /// Tests strongly typed extension generation.
+    ///
+    /// This test verifies that when the shouldGenerateStronglyTypedExtensions
+    /// flag is enabled, the generator creates protocol extensions with strongly
+    /// typed accessor properties that cast SBElementArray to specific types.
+    @Test func testStronglyTypedExtensions() throws {
+        // Create URL track class
+        let urlTrackClass = SDEFClass(
+            name: "URL track",
+            pluralName: "URL tracks",
+            code: "cURT",
+            description: "a track representing a network stream",
+            inherits: "track",
+            properties: [],
+            elements: [],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        // Create playlist class that contains URL tracks
+        let playlistClass = SDEFClass(
+            name: "radio tuner playlist",
+            pluralName: "radio tuner playlists",
+            code: "cRTP",
+            description: "the radio tuner playlist",
+            inherits: "playlist",
+            properties: [],
+            elements: [SDEFElement(type: "URL track", cocoaKey: nil)],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let suite = SDEFSuite(
+            name: "Music Suite",
+            code: "musi",
+            description: "Music application suite",
+            classes: [urlTrackClass, playlistClass],
+            enumerations: [],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Music", shouldGenerateClassNamesEnum: false, shouldGenerateStronglyTypedExtensions: true, verbose: false)
+        let swiftCode = try generator.generateCode()
+
+        // Verify the protocol method exists
+        #expect(swiftCode.contains("@objc optional func URLTracks() -> SBElementArray"))
+
+        // Verify strongly typed extension is generated
+        #expect(swiftCode.contains("/// Strongly typed accessors for radio tuner playlist"))
+        #expect(swiftCode.contains("public extension MusicRadioTunerPlaylist {"))
+        #expect(swiftCode.contains("/// Strongly typed accessor for URL track elements"))
+        #expect(swiftCode.contains("var urlTracks: [MusicURLTrack] {"))
+        #expect(swiftCode.contains("URLTracks?() as? [MusicURLTrack] ?? []"))
+
+        // Verify correct property naming
+        #expect(swiftCode.contains("var urlTracks: [MusicURLTrack]"))
+        #expect(!swiftCode.contains("var uRLTracks:"))
+    }
+
+    /// Tests that strongly typed extensions are not generated when disabled.
+    ///
+    /// This test ensures that when shouldGenerateStronglyTypedExtensions is false,
+    /// no strongly typed extension code is generated.
+    @Test func testStronglyTypedExtensionsDisabled() throws {
+        let playlistClass = SDEFClass(
+            name: "playlist",
+            pluralName: "playlists",
+            code: "cPls",
+            description: "a playlist",
+            inherits: nil,
+            properties: [],
+            elements: [SDEFElement(type: "track", cocoaKey: nil)],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let suite = SDEFSuite(
+            name: "Music Suite",
+            code: "musi",
+            description: "Music application suite",
+            classes: [playlistClass],
+            enumerations: [],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Music", shouldGenerateClassNamesEnum: false, shouldGenerateStronglyTypedExtensions: false, verbose: false)
+        let swiftCode = try generator.generateCode()
+
+        // Verify no strongly typed extensions are generated
+        #expect(!swiftCode.contains("Strongly typed accessors"))
+        #expect(!swiftCode.contains("public extension MusicPlaylist"))
+        #expect(!swiftCode.contains("var tracks: [MusicTrack]"))
+    }
+
+    /// Tests all the fixes working together comprehensively.
+    ///
+    /// This test demonstrates the complete solution covering all reported issues:
+    /// - Protocol name capitalization for multi-word classes
+    /// - Element array method camelCase conversion
+    /// - DocC comment capitalization
+    /// - Setter DocC comment generation
+    /// - Strongly typed extension generation
+    @Test func testAllFixesComprehensive() throws {
+        // Create class with multi-word name matching the user's example
+        let audioCDTrackClass = SDEFClass(
+            name: "audio CD track",
+            pluralName: "audio CD tracks",
+            code: "cCDT",
+            description: "a track on an audio CD",
+            inherits: "track",
+            properties: [
+                SDEFProperty(
+                    name: "artist",
+                    code: "pArt",
+                    type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true),
+                    description: "the artist of the CD",
+                    access: "",
+                    isHidden: false
+                )
+            ],
+            elements: [],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        // Create multi-word class matching the user's second example
+        let radioTunerPlaylistClass = SDEFClass(
+            name: "radio tuner playlist",
+            pluralName: "radio tuner playlists",
+            code: "cRTP",
+            description: "the radio tuner playlist",
+            inherits: "playlist",
+            properties: [],
+            elements: [SDEFElement(type: "audio CD track", cocoaKey: nil)],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let suite = SDEFSuite(
+            name: "Music Suite",
+            code: "musi",
+            description: "comprehensive test suite",
+            classes: [audioCDTrackClass, radioTunerPlaylistClass],
+            enumerations: [],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(
+            model: model,
+            basename: "Music",
+            shouldGenerateClassNamesEnum: false,
+            shouldGenerateStronglyTypedExtensions: true,
+            verbose: false
+        )
+        let swiftCode = try generator.generateCode()
+
+        // Test 1: Protocol name capitalization fix
+        #expect(swiftCode.contains("@objc public protocol MusicAudioCDTrack:"))
+        #expect(swiftCode.contains("@objc public protocol MusicRadioTunerPlaylist:"))
+        #expect(!swiftCode.contains("MusicAudiocdtrack"))
+        #expect(!swiftCode.contains("MusicRadiotunerplaylist"))
+
+        // Test 2: Element array method camelCase fix
+        #expect(swiftCode.contains("@objc optional func audioCDTracks() -> SBElementArray"))
+        #expect(!swiftCode.contains("audio cd tracks()"))
+
+        // Test 3: DocC comment capitalization
+        #expect(swiftCode.contains("/// A track on an audio CD"))
+        #expect(swiftCode.contains("/// The radio tuner playlist"))
+        #expect(swiftCode.contains("/// The artist of the CD"))
+        #expect(!swiftCode.contains("/// a track on an audio CD"))
+        #expect(!swiftCode.contains("/// the radio tuner playlist"))
+        #expect(!swiftCode.contains("/// the artist of the CD"))
+
+        // Test 4: Setter DocC comment generation
+        #expect(swiftCode.contains("/// Set the artist of the CD"))
+        #expect(swiftCode.contains("@objc optional func setArtist(_ artist: String?)"))
+
+        // Test 5: Strongly typed extensions
+        #expect(swiftCode.contains("/// Strongly typed accessors for radio tuner playlist"))
+        #expect(swiftCode.contains("public extension MusicRadioTunerPlaylist {"))
+        #expect(swiftCode.contains("/// Strongly typed accessor for audio CD track elements"))
+        #expect(swiftCode.contains("var audioCDTracks: [MusicAudioCDTrack] {"))
+        #expect(swiftCode.contains("audioCDTracks?() as? [MusicAudioCDTrack] ?? []"))
+
+        print("✅ All fixes verified: Protocol names, camelCase methods, DocC capitalization, setter comments, and strongly typed extensions")
     }
 }

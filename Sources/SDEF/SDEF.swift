@@ -31,7 +31,7 @@ import Foundation
 /// let model = try parser.parse()
 ///
 /// // Generate Swift code
-/// let generator = SDEFSwiftCodeGenerator(model: model, basename: "MyApp", verbose: true)
+/// let generator = SDEFSwiftCodeGenerator(model: model, basename: "MyApp", shouldGenerateClassNamesEnum: true, shouldGenerateStronglyTypedExtensions: true, verbose: true)
 /// let swiftCode = try generator.generateCode()
 /// ```
 public enum SDEFLibrary {
@@ -66,8 +66,8 @@ public extension SDEFLibrary {
     ///   - basename: The prefix to use for all generated Swift types
     ///   - verbose: Whether to enable detailed generation output
     /// - Returns: A configured code generator ready to produce Swift code
-    static func swiftGenerator(for model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool = true, verbose: Bool = false) -> SDEFSwiftCodeGenerator {
-        return SDEFSwiftCodeGenerator(model: model, basename: basename, shouldGenerateClassNamesEnum: shouldGenerateClassNamesEnum, verbose: verbose)
+    static func swiftGenerator(for model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool = true, shouldGenerateStronglyTypedExtensions: Bool = false, verbose: Bool = false) -> SDEFSwiftCodeGenerator {
+        return SDEFSwiftCodeGenerator(model: model, basename: basename, shouldGenerateClassNamesEnum: shouldGenerateClassNamesEnum, shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions, verbose: verbose)
     }
 
     /// Creates a comprehensive Swift generator that coordinates SDEF parsing and code generation.
@@ -82,10 +82,11 @@ public extension SDEFLibrary {
     ///   - outputDirectory: The directory where the generated file should be written
     ///   - includeHidden: Whether to include definitions marked as hidden in the SDEF
     ///   - generateClassNamesEnum: Whether to generate an enum containing all scripting class names
+    ///   - shouldGenerateStronglyTypedExtensions: Whether to generate strongly typed accessor extensions
     ///   - verbose: Whether to provide detailed logging during the generation process
     /// - Returns: A configured SDEF Swift generator ready to process the file
-    static func generator(for sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool = false, generateClassNamesEnum: Bool = true, verbose: Bool = false) -> SDEFSwiftGenerator {
-        return SDEFSwiftGenerator(sdefURL: sdefURL, basename: basename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, verbose: verbose)
+    static func generator(for sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool = false, generateClassNamesEnum: Bool = true, shouldGenerateStronglyTypedExtensions: Bool = false, verbose: Bool = false) -> SDEFSwiftGenerator {
+        return SDEFSwiftGenerator(sdefURL: sdefURL, basename: basename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions, verbose: verbose)
     }
 
     /// Parses an SDEF file and generates Swift code in a single operation.
@@ -100,17 +101,18 @@ public extension SDEFLibrary {
     ///   - basename: The prefix to use for generated Swift types
     ///   - includeHidden: Whether to include hidden definitions
     ///   - generateClassNamesEnum: Whether to generate an enum containing all scripting class names
+    ///   - shouldGenerateStronglyTypedExtensions: Whether to generate strongly typed accessor extensions
     ///   - verbose: Whether to enable detailed output
     /// - Returns: The generated Swift source code as a string
     /// - Throws: `SDEFParsingError` if parsing fails, `SDEFCodeGenerationError` if code generation fails, or file system errors
-    static func generateSwiftCode(from url: URL, basename: String, includeHidden: Bool = false, generateClassNamesEnum: Bool = true, verbose: Bool = false) throws -> String {
+    static func generateSwiftCode(from url: URL, basename: String, includeHidden: Bool = false, generateClassNamesEnum: Bool = true, shouldGenerateStronglyTypedExtensions: Bool = false, verbose: Bool = false) throws -> String {
         let xmlData = try Data(contentsOf: url)
         let xmlDocument = try XMLDocument(data: xmlData, options: [])
 
         let parser = SDEFParser(document: xmlDocument, includeHidden: includeHidden, verbose: verbose)
         let model = try parser.parse()
 
-        let generator = SDEFSwiftCodeGenerator(model: model, basename: basename, shouldGenerateClassNamesEnum: generateClassNamesEnum, verbose: verbose)
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: basename, shouldGenerateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions, verbose: verbose)
         return try generator.generateCode()
     }
 }
