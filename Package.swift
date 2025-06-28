@@ -12,6 +12,9 @@ let package = Package(
         .library(
             name: "ScriptingBridge",
             targets: ["ScriptingBridge"]),
+        .library(
+            name: "SDEF",
+            targets: ["SDEF"]),
         .executable(
             name: "sdef2swift",
             targets: ["sdef2swift"]),
@@ -25,15 +28,23 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "ScriptingBridge"),
+        .target(
+            name: "SDEF",
+            dependencies: [
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
+            ]),
         .executableTarget(
             name: "sdef2swift",
             dependencies: [
+                "SDEF",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .product(name: "SwiftSyntax", package: "swift-syntax"),
-                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
             ]),
         .testTarget(
             name: "ScriptingBridgeTests",
             dependencies: ["ScriptingBridge"]),
+        .testTarget(
+            name: "SDEFTests",
+            dependencies: ["SDEF"]),
     ]
 )
