@@ -554,12 +554,12 @@ public final class SDEFSwiftCodeGenerator {
             if let elementClass = elementClass, let pluralName = elementClass.pluralName {
                 // Use the defined plural name
                 methodName = swiftMethodName(pluralName)
-                pluralPropertyName = swiftPropertyName(pluralName)
+                pluralPropertyName = swiftMethodName(pluralName)
             } else {
                 // Fallback: use the type name + "s"
                 let pluralForm = element.type + "s"
                 methodName = swiftMethodName(pluralForm)
-                pluralPropertyName = swiftPropertyName(pluralForm)
+                pluralPropertyName = swiftMethodName(pluralForm)
             }
 
             let elementTypeName = "\(baseName)\(swiftClassName(element.type))"

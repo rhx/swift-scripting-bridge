@@ -600,11 +600,11 @@ struct SDEFTests {
         #expect(swiftCode.contains("/// Strongly typed accessors for radio tuner playlist"))
         #expect(swiftCode.contains("public extension MusicRadioTunerPlaylist {"))
         #expect(swiftCode.contains("/// Strongly typed accessor for URL track elements"))
-        #expect(swiftCode.contains("var musicUrlTracks: [MusicURLTrack] {"))
+        #expect(swiftCode.contains("var musicURLTracks: [MusicURLTrack] {"))
         #expect(swiftCode.contains("URLTracks?() as? [MusicURLTrack] ?? []"))
 
         // Verify correct property naming
-        #expect(swiftCode.contains("var musicUrlTracks: [MusicURLTrack]"))
+        #expect(swiftCode.contains("var musicURLTracks: [MusicURLTrack]"))
         #expect(!swiftCode.contains("var urlTracks: [MusicURLTrack]"))
     }
 
@@ -801,12 +801,12 @@ struct SDEFTests {
         #expect(swiftCode.contains("@objc optional func URLTracks() -> SBElementArray"))
 
         // User's third issue: strongly typed extension with type prefix to avoid clashes
-        #expect(swiftCode.contains("var musicUrlTracks: [MusicURLTrack] {"))
+        #expect(swiftCode.contains("var musicURLTracks: [MusicURLTrack] {"))
         #expect(swiftCode.contains("URLTracks?() as? [MusicURLTrack] ?? []"))
 
         // Verify no name clash (different names for method vs property)
         #expect(!swiftCode.contains("var URLTracks: [MusicURLTrack]"))
 
-        print("✅ User's original examples verified: MusicRadioTunerPlaylist, URLTracks() method, and musicUrlTracks typed property")
+        print("✅ User's original examples verified: MusicRadioTunerPlaylist, URLTracks() method, and musicURLTracks typed property")
     }
 }
