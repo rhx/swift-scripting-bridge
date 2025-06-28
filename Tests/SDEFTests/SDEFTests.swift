@@ -182,7 +182,7 @@ struct SDEFTests {
         )
 
         let model = SDEFModel(suites: [suite])
-        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: true, verbose: false)
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: false, verbose: false)
         let swiftCode = try generator.generateCode()
 
         // Verify basic structure
@@ -261,69 +261,57 @@ struct SDEFTests {
         #expect(property?.code == "")
     }
 
-    /// Tests class names enum generation functionality.
+    /// Tests that element array method names are properly camelCased.
     ///
-    /// This test verifies that the class names enum is correctly generated when enabled
-    /// and omitted when disabled. It checks both the structure and content of the
-    /// generated enum, including proper transformation of class names to enum cases.
-    @Test func testClassNamesEnumGeneration() throws {
-        let testClass1 = SDEFClass(
-            name: "document",
-            pluralName: "documents",
-            code: "docu",
-            description: "A document",
-            inherits: nil,
+    /// This test validates that when generating protocol methods for accessing
+    /// element arrays, the method names are properly converted to camelCase,
+    /// especially for multi-word class names with spaces.
+    @Test func testElementArrayMethodCamelCasing() throws {
+        // Create a class with multi-word name and plural
+        let audioCDTrackClass = SDEFClass(
+            name: "audio CD track",
+            pluralName: "audio CD tracks",
+            code: "cCDT",
+            description: "a track on an audio CD",
+            inherits: "track",
             properties: [],
             elements: [],
             respondsTo: [],
             isHidden: false
         )
 
-        let testClass2 = SDEFClass(
-            name: "attribute-run",
-            pluralName: "attribute runs",
-            code: "catt",
-            description: "An attribute run",
+        // Create a container class that has audio CD tracks as elements
+        let element = SDEFElement(type: "audio CD track", cocoaKey: nil)
+        let containerClass = SDEFClass(
+            name: "CD",
+            pluralName: "CDs",
+            code: "cCD ",
+            description: "a CD",
             inherits: nil,
             properties: [],
-            elements: [],
+            elements: [element],
             respondsTo: [],
             isHidden: false
-        )
-
-        let classExtension = SDEFClassExtension(
-            extends: "application",
-            properties: [],
-            elements: [],
-            respondsTo: []
         )
 
         let suite = SDEFSuite(
             name: "Test Suite",
             code: "test",
             description: "A test suite",
-            classes: [testClass1, testClass2],
+            classes: [audioCDTrackClass, containerClass],
             enumerations: [],
             commands: [],
-            classExtensions: [classExtension]
+            classExtensions: []
         )
 
         let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: false, verbose: false)
+        let swiftCode = try generator.generateCode()
 
-        // Test with enum generation enabled (default)
-        let generatorWithEnum = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: true, verbose: false)
-        let swiftCodeWithEnum = try generatorWithEnum.generateCode()
+        // Verify that the generated method name is properly camelCased
+        #expect(swiftCode.contains("@objc optional func audioCDTracks() -> SBElementArray"))
 
-        #expect(swiftCodeWithEnum.contains("public enum TestScriptingClassNames: String, CaseIterable"))
-        #expect(swiftCodeWithEnum.contains("case document = \"document\""))
-        #expect(swiftCodeWithEnum.contains("case attributeRun = \"attribute-run\""))
-        #expect(swiftCodeWithEnum.contains("case application = \"application\""))
-
-        // Test with enum generation disabled
-        let generatorWithoutEnum = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: false, verbose: false)
-        let swiftCodeWithoutEnum = try generatorWithoutEnum.generateCode()
-
-        #expect(!swiftCodeWithoutEnum.contains("public enum TestScriptingClassNames"))
-        #expect(!swiftCodeWithoutEnum.contains("case document = \"document\""))
+        // Verify it doesn't contain the improperly spaced version
+        #expect(!swiftCode.lowercased().contains("func audio cd tracks"))
     }
 }

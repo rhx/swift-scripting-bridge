@@ -187,7 +187,21 @@ public final class SDEFSwiftCodeGenerator {
 
         // Generate element arrays
         for element in sdefClass.elements {
-            let methodName = element.type.lowercased() + "s"
+            // Look up the class to get its plural name
+            var methodName: String
+
+            // Find the class definition for this element type
+            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type }
+
+            if let elementClass = elementClass, let pluralName = elementClass.pluralName {
+                // Use the defined plural name and convert to camelCase
+                methodName = swiftMethodName(pluralName)
+            } else {
+                // Fallback: use the type name + "s" and convert to camelCase
+                let pluralForm = element.type + "s"
+                methodName = swiftMethodName(pluralForm)
+            }
+
             code += "    @objc optional func \(methodName)() -> SBElementArray\n"
         }
 
@@ -395,6 +409,39 @@ public final class SDEFSwiftCodeGenerator {
         }
     }
 
+    private func swiftMethodName(_ name: String) -> String {
+        // Split by spaces, hyphens, and underscores
+        let words = name.components(separatedBy: CharacterSet(charactersIn: " -_"))
+            .filter { !$0.isEmpty }
+
+        guard !words.isEmpty else { return name }
+
+        // Process each word
+        var processedWords: [String] = []
+
+        for (index, word) in words.enumerated() {
+            let cleanWord = word.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleanWord.isEmpty else { continue }
+
+            // Handle special cases that should remain uppercase
+            let upperWord = cleanWord.uppercased()
+            if upperWord == "CD" || upperWord == "DVD" || upperWord == "URL" ||
+               upperWord == "ID" || upperWord == "UUID" || upperWord == "HTTP" ||
+               upperWord == "HTTPS" || upperWord == "XML" || upperWord == "HTML" ||
+               upperWord == "PDF" || upperWord == "UI" || upperWord == "API" {
+                processedWords.append(upperWord)
+            } else if index == 0 {
+                // First word should be lowercase
+                processedWords.append(cleanWord.lowercased())
+            } else {
+                // Subsequent words should be capitalized
+                processedWords.append(cleanWord.capitalizingFirstLetter())
+            }
+        }
+
+        return processedWords.joined()
+    }
+
     private func swiftCaseName(_ name: String) -> String {
         let cleaned = name
             .replacingOccurrences(of: " ", with: "")
@@ -432,43 +479,43 @@ public final class SDEFSwiftCodeGenerator {
     /// - Returns: Swift code for the class names enumeration
     private func generateClassNamesEnum() -> String {
         var classNames = Set<String>()
-        
+
         // Collect all class names (parser already filtered hidden classes if needed)
         for suite in model.suites {
             for sdefClass in suite.classes {
                 classNames.insert(sdefClass.name)
             }
-            
+
             // Also collect class extension names
             for classExtension in suite.classExtensions {
                 classNames.insert(classExtension.extends)
             }
         }
-        
+
         // Sort names for consistent output
         let sortedNames = classNames.sorted()
-        
+
         var code = """
-        
+
         /// An enumeration of all scripting class names available in this application.
         ///
         /// This enum provides a type-safe way to reference all scriptable classes defined
         /// in the application's scripting dictionary. Each case corresponds to a class
         /// that can be accessed through the Scripting Bridge framework.
         public enum \(baseName)ScriptingClassNames: String, CaseIterable {
-        
+
         """
-        
+
         for name in sortedNames {
             let caseName = transformToEnumCase(name)
             code += "    case \(caseName) = \"\(name)\"\n"
         }
-        
+
         code += "}\n\n"
-        
+
         return code
     }
-    
+
     /// Transforms a class name into a proper Swift enum case name.
     ///
     /// This method implements the same transformation logic as the Python reference,
@@ -482,11 +529,11 @@ public final class SDEFSwiftCodeGenerator {
         let transformed = name
             .replacingOccurrences(of: "\"", with: "")
             .replacingOccurrences(of: "-", with: " ")
-        
+
         // Capitalize each word and remove spaces
         let words = transformed.components(separatedBy: " ")
         let capitalized = words.map { $0.capitalizingFirstLetter() }.joined()
-        
+
         // Convert to camelCase (first letter lowercase)
         return capitalized.lowercaseFirstLetter()
     }
