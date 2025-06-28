@@ -70,8 +70,10 @@ public final class SDEFParser {
 
         return SDEFModel(suites: mergedSuites)
     }
+}
 
-    private func processXIIncludes(from element: XMLElement) throws {
+private extension SDEFParser {
+    func processXIIncludes(from element: XMLElement) throws {
         // Look for xi:include elements with proper namespace handling
         do {
             let includeElements = try element.nodes(forXPath: ".//xi:include")
@@ -108,7 +110,7 @@ public final class SDEFParser {
         }
     }
 
-    private func loadCocoaStandardDefinitions() throws {
+    func loadCocoaStandardDefinitions() throws {
         let cocoaStandardPath = "/System/Library/ScriptingDefinitions/CocoaStandard.sdef"
         guard FileManager.default.fileExists(atPath: cocoaStandardPath) else {
             if verbose {
@@ -147,7 +149,7 @@ public final class SDEFParser {
         }
     }
 
-    private func addFallbackStandardDefinitions() {
+    func addFallbackStandardDefinitions() {
         // Add minimal standard class definitions for common cases
         let windowClass = SDEFClass(
             name: "window",
@@ -245,7 +247,7 @@ public final class SDEFParser {
         }
     }
 
-    private func parseSuites(from element: XMLElement) throws -> [SDEFSuite] {
+    func parseSuites(from element: XMLElement) throws -> [SDEFSuite] {
         let suiteElements = try element.nodes(forXPath: ".//suite")
         var suites: [SDEFSuite] = []
 
@@ -259,7 +261,7 @@ public final class SDEFParser {
         return suites
     }
 
-    private func mergeClassExtensions(_ suites: [SDEFSuite]) throws -> [SDEFSuite] {
+    func mergeClassExtensions(_ suites: [SDEFSuite]) throws -> [SDEFSuite] {
         var mergedSuites: [SDEFSuite] = []
 
         for suite in suites {
@@ -325,7 +327,7 @@ public final class SDEFParser {
         return mergedSuites
     }
 
-    private func parseSuite(from element: XMLElement) throws -> SDEFSuite {
+    func parseSuite(from element: XMLElement) throws -> SDEFSuite {
         let name = element.attribute(forName: "name")?.stringValue ?? ""
         let code = element.attribute(forName: "code")?.stringValue ?? ""
         let description = element.attribute(forName: "description")?.stringValue
@@ -346,7 +348,7 @@ public final class SDEFParser {
         )
     }
 
-    private func parseClasses(from element: XMLElement) throws -> [SDEFClass] {
+    func parseClasses(from element: XMLElement) throws -> [SDEFClass] {
         let classElements = try element.nodes(forXPath: ".//class")
         var classes: [SDEFClass] = []
 
@@ -363,7 +365,7 @@ public final class SDEFParser {
         return classes
     }
 
-    private func parseClass(from element: XMLElement) throws -> SDEFClass {
+    func parseClass(from element: XMLElement) throws -> SDEFClass {
         let name = element.attribute(forName: "name")?.stringValue ?? ""
         let pluralName = element.attribute(forName: "plural")?.stringValue
         let code = element.attribute(forName: "code")?.stringValue ?? ""
@@ -388,7 +390,7 @@ public final class SDEFParser {
         )
     }
 
-    private func parseClassExtensions(from element: XMLElement) throws -> [SDEFClassExtension] {
+    func parseClassExtensions(from element: XMLElement) throws -> [SDEFClassExtension] {
         let extensionElements = try element.nodes(forXPath: ".//class-extension")
         var extensions: [SDEFClassExtension] = []
 
@@ -413,7 +415,7 @@ public final class SDEFParser {
         return extensions
     }
 
-    private func parseProperties(from element: XMLElement) throws -> [SDEFProperty] {
+    func parseProperties(from element: XMLElement) throws -> [SDEFProperty] {
         let propertyElements = try element.nodes(forXPath: ".//property")
         var properties: [SDEFProperty] = []
 
@@ -430,7 +432,7 @@ public final class SDEFParser {
         return properties
     }
 
-    private func parseProperty(from element: XMLElement) throws -> SDEFProperty {
+    func parseProperty(from element: XMLElement) throws -> SDEFProperty {
         let name = element.attribute(forName: "name")?.stringValue ?? ""
         let code = element.attribute(forName: "code")?.stringValue ?? ""
         let description = element.attribute(forName: "description")?.stringValue
@@ -449,7 +451,7 @@ public final class SDEFParser {
         )
     }
 
-    private func parsePropertyType(from element: XMLElement) throws -> SDEFPropertyType {
+    func parsePropertyType(from element: XMLElement) throws -> SDEFPropertyType {
         // Try to find type element first
         if let typeElements = try? element.nodes(forXPath: ".//type"),
            let typeElement = typeElements.first as? XMLElement {
@@ -463,7 +465,7 @@ public final class SDEFParser {
         return SDEFPropertyType(baseType: typeAttr, isList: false, isOptional: true)
     }
 
-    private func parseElements(from element: XMLElement) throws -> [SDEFElement] {
+    func parseElements(from element: XMLElement) throws -> [SDEFElement] {
         let elementElements = try element.nodes(forXPath: ".//element")
         var elements: [SDEFElement] = []
 
@@ -480,7 +482,7 @@ public final class SDEFParser {
         return elements
     }
 
-    private func parseRespondsTo(from element: XMLElement) throws -> [String] {
+    func parseRespondsTo(from element: XMLElement) throws -> [String] {
         let respondsToElements = try element.nodes(forXPath: ".//responds-to")
         var commands: [String] = []
 
@@ -495,7 +497,7 @@ public final class SDEFParser {
         return commands
     }
 
-    private func parseEnumerations(from element: XMLElement) throws -> [SDEFEnumeration] {
+    func parseEnumerations(from element: XMLElement) throws -> [SDEFEnumeration] {
         let enumElements = try element.nodes(forXPath: ".//enumeration")
         var enumerations: [SDEFEnumeration] = []
 
@@ -512,7 +514,7 @@ public final class SDEFParser {
         return enumerations
     }
 
-    private func parseEnumeration(from element: XMLElement) throws -> SDEFEnumeration {
+    func parseEnumeration(from element: XMLElement) throws -> SDEFEnumeration {
         let name = element.attribute(forName: "name")?.stringValue ?? ""
         let code = element.attribute(forName: "code")?.stringValue ?? ""
         let description = element.attribute(forName: "description")?.stringValue
@@ -529,7 +531,7 @@ public final class SDEFParser {
         )
     }
 
-    private func parseEnumerators(from element: XMLElement) throws -> [SDEFEnumerator] {
+    func parseEnumerators(from element: XMLElement) throws -> [SDEFEnumerator] {
         let enumeratorElements = try element.nodes(forXPath: ".//enumerator")
         var enumerators: [SDEFEnumerator] = []
 
@@ -560,7 +562,7 @@ public final class SDEFParser {
         return enumerators
     }
 
-    private func parseCommands(from element: XMLElement) throws -> [SDEFCommand] {
+    func parseCommands(from element: XMLElement) throws -> [SDEFCommand] {
         let commandElements = try element.nodes(forXPath: ".//command")
         var commands: [SDEFCommand] = []
 
@@ -577,7 +579,7 @@ public final class SDEFParser {
         return commands
     }
 
-    private func parseCommand(from element: XMLElement) throws -> SDEFCommand {
+    func parseCommand(from element: XMLElement) throws -> SDEFCommand {
         let name = element.attribute(forName: "name")?.stringValue ?? ""
         let code = element.attribute(forName: "code")?.stringValue ?? ""
         let description = element.attribute(forName: "description")?.stringValue
@@ -618,7 +620,7 @@ public final class SDEFParser {
         )
     }
 
-    private func parseParameter(from element: XMLElement, name: String?) throws -> SDEFParameter {
+    func parseParameter(from element: XMLElement, name: String?) throws -> SDEFParameter {
         let code = element.attribute(forName: "code")?.stringValue ?? ""
         let description = element.attribute(forName: "description")?.stringValue
         let isOptional = element.attribute(forName: "optional")?.stringValue == "yes"

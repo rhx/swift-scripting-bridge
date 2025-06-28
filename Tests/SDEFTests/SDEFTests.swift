@@ -216,14 +216,14 @@ struct SDEFTests {
         let xmlDocument = try XMLDocument(data: xmlData, options: [])
 
         // Test parser convenience method
-        let parser = SDEF.parser(for: xmlDocument, includeHidden: false, verbose: false)
+        let parser = SDEFLibrary.parser(for: xmlDocument, includeHidden: false, verbose: false)
         let model = try parser.parse()
 
         #expect(model.suites.count == 1)
         #expect(model.suites.first?.classes.count == 1)
 
         // Test generator convenience method
-        let generator = SDEF.swiftGenerator(for: model, basename: "Test", verbose: false)
+        let generator = SDEFLibrary.swiftGenerator(for: model, basename: "Test", verbose: false)
         let swiftCode = try generator.generateCode()
 
         #expect(swiftCode.contains("TestDocument"))
