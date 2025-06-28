@@ -549,25 +549,26 @@ public final class SDEFSwiftCodeGenerator {
             let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type }
 
             var methodName: String
-            var propertyName: String
+            var pluralPropertyName: String
 
             if let elementClass = elementClass, let pluralName = elementClass.pluralName {
                 // Use the defined plural name
                 methodName = swiftMethodName(pluralName)
-                propertyName = swiftPropertyName(pluralName)
+                pluralPropertyName = swiftPropertyName(pluralName)
             } else {
                 // Fallback: use the type name + "s"
                 let pluralForm = element.type + "s"
                 methodName = swiftMethodName(pluralForm)
-                propertyName = swiftPropertyName(pluralForm)
+                pluralPropertyName = swiftPropertyName(pluralForm)
             }
 
             let elementTypeName = "\(baseName)\(swiftClassName(element.type))"
+            let prefixedPropertyName = baseName.lowercaseFirstLetter() + pluralPropertyName.capitalizingFirstLetter()
 
             code += """
 
                 /// Strongly typed accessor for \(element.type) elements
-                var \(propertyName): [\(elementTypeName)] {
+                var \(prefixedPropertyName): [\(elementTypeName)] {
                     \(methodName)?() as? [\(elementTypeName)] ?? []
                 }
             """

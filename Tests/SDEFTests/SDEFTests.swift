@@ -591,6 +591,8 @@ struct SDEFTests {
         let generator = SDEFSwiftCodeGenerator(model: model, basename: "Music", shouldGenerateClassNamesEnum: false, shouldGenerateStronglyTypedExtensions: true, verbose: false)
         let swiftCode = try generator.generateCode()
 
+
+
         // Verify the protocol method exists
         #expect(swiftCode.contains("@objc optional func URLTracks() -> SBElementArray"))
 
@@ -598,12 +600,12 @@ struct SDEFTests {
         #expect(swiftCode.contains("/// Strongly typed accessors for radio tuner playlist"))
         #expect(swiftCode.contains("public extension MusicRadioTunerPlaylist {"))
         #expect(swiftCode.contains("/// Strongly typed accessor for URL track elements"))
-        #expect(swiftCode.contains("var urlTracks: [MusicURLTrack] {"))
+        #expect(swiftCode.contains("var musicUrlTracks: [MusicURLTrack] {"))
         #expect(swiftCode.contains("URLTracks?() as? [MusicURLTrack] ?? []"))
 
         // Verify correct property naming
-        #expect(swiftCode.contains("var urlTracks: [MusicURLTrack]"))
-        #expect(!swiftCode.contains("var uRLTracks:"))
+        #expect(swiftCode.contains("var musicUrlTracks: [MusicURLTrack]"))
+        #expect(!swiftCode.contains("var urlTracks: [MusicURLTrack]"))
     }
 
     /// Tests that strongly typed extensions are not generated when disabled.
@@ -733,9 +735,78 @@ struct SDEFTests {
         #expect(swiftCode.contains("/// Strongly typed accessors for radio tuner playlist"))
         #expect(swiftCode.contains("public extension MusicRadioTunerPlaylist {"))
         #expect(swiftCode.contains("/// Strongly typed accessor for audio CD track elements"))
-        #expect(swiftCode.contains("var audioCDTracks: [MusicAudioCDTrack] {"))
+        #expect(swiftCode.contains("var musicAudioCDTracks: [MusicAudioCDTrack] {"))
         #expect(swiftCode.contains("audioCDTracks?() as? [MusicAudioCDTrack] ?? []"))
 
         print("✅ All fixes verified: Protocol names, camelCase methods, DocC capitalization, setter comments, and strongly typed extensions")
+    }
+
+    /// Tests the complete solution for the user's original examples.
+    ///
+    /// This test demonstrates the exact examples from the user's request:
+    /// - "radio tuner playlist" generates MusicRadioTunerPlaylist (not MusicRadiotunerplaylist)
+    /// - "URL tracks" method generates URLTracks() but property generates musicURLTrack
+    /// - Strongly typed extensions avoid name clashes by using type prefixes
+    @Test func testUserExamples() throws {
+        // Test the exact user examples
+        let urlTrackClass = SDEFClass(
+            name: "URL track",
+            pluralName: "URL tracks",
+            code: "cURT",
+            description: "a track representing a network stream",
+            inherits: "track",
+            properties: [],
+            elements: [],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let radioTunerPlaylistClass = SDEFClass(
+            name: "radio tuner playlist",
+            pluralName: "radio tuner playlists",
+            code: "cRTP",
+            description: "the radio tuner playlist",
+            inherits: "playlist",
+            properties: [],
+            elements: [SDEFElement(type: "URL track", cocoaKey: nil)],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let suite = SDEFSuite(
+            name: "Music Suite",
+            code: "musi",
+            description: "test suite",
+            classes: [urlTrackClass, radioTunerPlaylistClass],
+            enumerations: [],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(
+            model: model,
+            basename: "Music",
+            shouldGenerateClassNamesEnum: false,
+            shouldGenerateStronglyTypedExtensions: true,
+            verbose: false
+        )
+        let swiftCode = try generator.generateCode()
+
+        // User's first issue: protocol name capitalization
+        #expect(swiftCode.contains("@objc public protocol MusicRadioTunerPlaylist:"))
+        #expect(!swiftCode.contains("MusicRadiotunerplaylist"))
+
+        // User's second issue: URLTracks() method exists
+        #expect(swiftCode.contains("@objc optional func URLTracks() -> SBElementArray"))
+
+        // User's third issue: strongly typed extension with type prefix to avoid clashes
+        #expect(swiftCode.contains("var musicUrlTracks: [MusicURLTrack] {"))
+        #expect(swiftCode.contains("URLTracks?() as? [MusicURLTrack] ?? []"))
+
+        // Verify no name clash (different names for method vs property)
+        #expect(!swiftCode.contains("var URLTracks: [MusicURLTrack]"))
+
+        print("✅ User's original examples verified: MusicRadioTunerPlaylist, URLTracks() method, and musicUrlTracks typed property")
     }
 }
