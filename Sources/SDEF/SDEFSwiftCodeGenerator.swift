@@ -109,6 +109,15 @@ public final class SDEFSwiftCodeGenerator {
             }
         }
 
+        // Generate protocols for standard classes that haven't been merged
+        let mergedClassNames = Set(model.suites.flatMap { $0.classes }.map { $0.name })
+        for standardClass in model.standardClasses {
+            // Only generate if this standard class hasn't been merged into a regular class
+            if !mergedClassNames.contains(standardClass.name) {
+                code += generateClassProtocol(standardClass, suite: SDEFSuite(name: "Standard", code: "std", description: "Standard classes", classes: [], enumerations: [], commands: [], classExtensions: []))
+            }
+        }
+
         // Generate protocols for classes
         for suite in model.suites {
             for sdefClass in suite.classes {
@@ -609,6 +618,9 @@ public typealias \(baseName)ElementArray = SBElementArray
         for suite in model.suites {
             for sdefClass in suite.classes {
                 if !sdefClass.elements.isEmpty {
+                    if verbose {
+                        print("Processing class '\(sdefClass.name)' with \(sdefClass.elements.count) elements:")
+                    }
                     code += generateStronglyTypedExtension(sdefClass, suite: suite)
                 }
             }
@@ -628,7 +640,17 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         for element in sdefClass.elements {
             // Look up the class to get its plural name and generate typed accessor
-            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type }
+            // Check both regular classes and standard classes
+            let allClasses = model.suites.flatMap { $0.classes } + model.standardClasses
+            let elementClass = allClasses.first { $0.name == element.type }
+
+            // Only generate strongly typed accessor if the element type has a corresponding class definition
+            guard elementClass != nil else {
+                if verbose {
+                    print("Skipping strongly typed accessor for \(element.type) - no corresponding class definition found")
+                }
+                continue
+            }
 
             var methodName: String
             var pluralPropertyName: String

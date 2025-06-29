@@ -68,7 +68,7 @@ public final class SDEFParser {
         // Merge class extensions with standard classes
         let mergedSuites = try mergeClassExtensions(suites)
 
-        return SDEFModel(suites: mergedSuites)
+        return SDEFModel(suites: mergedSuites, standardClasses: Array(standardClasses.values))
     }
 }
 

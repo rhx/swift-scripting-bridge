@@ -18,13 +18,17 @@ import Foundation
 public struct SDEFModel: Codable {
     /// The scripting suites contained within this SDEF model
     public let suites: [SDEFSuite]
+    /// The standard classes loaded from CocoaStandard.sdef
+    public let standardClasses: [SDEFClass]
 
     /// Creates a new SDEF model with the specified suites.
     ///
     /// - Parameters:
     ///   - suites: The scripting suites to include in this model
-    public init(suites: [SDEFSuite]) {
+    ///   - standardClasses: The standard classes from CocoaStandard.sdef
+    public init(suites: [SDEFSuite], standardClasses: [SDEFClass] = []) {
         self.suites = suites
+        self.standardClasses = standardClasses
     }
 }
 
