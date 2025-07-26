@@ -212,6 +212,7 @@ public struct SDEFClassExtension: Codable {
 ///   - type: The data type and constraints for this property
 ///   - description: Optional description of the property's purpose
 ///   - access: The access permissions (read, write, or both)
+///   - cocoaKey: The Cocoa key name for this property, used for better Swift naming
 ///   - isHidden: Whether this property is hidden from normal scripting use
 public struct SDEFProperty: Codable {
     /// The human-readable name of this property
@@ -229,6 +230,9 @@ public struct SDEFProperty: Codable {
     /// The access permissions for this property (read, write, or both)
     public let access: String?
 
+    /// The Cocoa key name for this property, used for generating better Swift property names
+    public let cocoaKey: String?
+
     /// Whether this property is marked as hidden in the scripting interface
     public let isHidden: Bool
 
@@ -240,13 +244,15 @@ public struct SDEFProperty: Codable {
     ///   - type: The data type and constraints for the property
     ///   - description: Optional description of the property
     ///   - access: Access permissions string, or nil for read-write
+    ///   - cocoaKey: The Cocoa key name, or nil if not specified
     ///   - isHidden: Whether the property is hidden from normal use
-    public init(name: String, code: String, type: SDEFPropertyType, description: String?, access: String?, isHidden: Bool) {
+    public init(name: String, code: String, type: SDEFPropertyType, description: String?, access: String?, cocoaKey: String?, isHidden: Bool) {
         self.name = name
         self.code = code
         self.type = type
         self.description = description
         self.access = access
+        self.cocoaKey = cocoaKey
         self.isHidden = isHidden
     }
 }

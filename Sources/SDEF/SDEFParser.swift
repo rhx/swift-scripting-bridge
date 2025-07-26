@@ -158,18 +158,18 @@ private extension SDEFParser {
             description: "A window.",
             inherits: nil,
             properties: [
-                SDEFProperty(name: "name", code: "pnam", type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true), description: "The title of the window.", access: "r", isHidden: false),
-                SDEFProperty(name: "id", code: "ID  ", type: SDEFPropertyType(baseType: "integer", isList: false, isOptional: true), description: "The unique identifier of the window.", access: "r", isHidden: false),
-                SDEFProperty(name: "index", code: "pidx", type: SDEFPropertyType(baseType: "integer", isList: false, isOptional: true), description: "The index of the window, ordered front to back.", access: "", isHidden: false),
-                SDEFProperty(name: "bounds", code: "pbnd", type: SDEFPropertyType(baseType: "rectangle", isList: false, isOptional: true), description: "The bounding rectangle of the window.", access: "", isHidden: false),
-                SDEFProperty(name: "closeable", code: "hclb", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Does the window have a close button?", access: "r", isHidden: false),
-                SDEFProperty(name: "miniaturizable", code: "ismn", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Does the window have a minimize button?", access: "r", isHidden: false),
-                SDEFProperty(name: "miniaturized", code: "pmnd", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Is the window minimized right now?", access: "", isHidden: false),
-                SDEFProperty(name: "resizable", code: "prsz", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Can the window be resized?", access: "r", isHidden: false),
-                SDEFProperty(name: "visible", code: "pvis", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Is the window visible right now?", access: "", isHidden: false),
-                SDEFProperty(name: "zoomable", code: "iszm", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Does the window have a zoom button?", access: "r", isHidden: false),
-                SDEFProperty(name: "zoomed", code: "pzum", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Is the window zoomed right now?", access: "", isHidden: false),
-                SDEFProperty(name: "document", code: "docu", type: SDEFPropertyType(baseType: "document", isList: false, isOptional: true), description: "The document whose contents are displayed in the window.", access: "r", isHidden: false)
+                SDEFProperty(name: "name", code: "pnam", type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true), description: "The title of the window.", access: "r", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "id", code: "ID  ", type: SDEFPropertyType(baseType: "integer", isList: false, isOptional: true), description: "The unique identifier of the window.", access: "r", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "index", code: "pidx", type: SDEFPropertyType(baseType: "integer", isList: false, isOptional: true), description: "The index of the window, ordered front to back.", access: "", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "bounds", code: "pbnd", type: SDEFPropertyType(baseType: "rectangle", isList: false, isOptional: true), description: "The bounding rectangle of the window.", access: "", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "closeable", code: "hclb", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Does the window have a close button?", access: "r", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "miniaturizable", code: "ismn", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Does the window have a minimize button?", access: "r", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "miniaturized", code: "pmnd", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Is the window minimized right now?", access: "", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "resizable", code: "prsz", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Can the window be resized?", access: "r", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "visible", code: "pvis", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Is the window visible right now?", access: "", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "zoomable", code: "iszm", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Does the window have a zoom button?", access: "r", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "zoomed", code: "pzum", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Is the window zoomed right now?", access: "", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "document", code: "docu", type: SDEFPropertyType(baseType: "document", isList: false, isOptional: true), description: "The document whose contents are displayed in the window.", access: "r", cocoaKey: nil, isHidden: false)
             ],
             elements: [],
             respondsTo: ["close", "print", "save"],
@@ -183,9 +183,9 @@ private extension SDEFParser {
             description: "A document.",
             inherits: nil,
             properties: [
-                SDEFProperty(name: "name", code: "pnam", type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true), description: "Its name.", access: "r", isHidden: false),
-                SDEFProperty(name: "modified", code: "imod", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Has it been modified since the last save?", access: "r", isHidden: false),
-                SDEFProperty(name: "file", code: "file", type: SDEFPropertyType(baseType: "file", isList: false, isOptional: true), description: "Its location on disk, if it has one.", access: "r", isHidden: false)
+                SDEFProperty(name: "name", code: "pnam", type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true), description: "Its name.", access: "r", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "modified", code: "imod", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Has it been modified since the last save?", access: "r", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "file", code: "file", type: SDEFPropertyType(baseType: "file", isList: false, isOptional: true), description: "Its location on disk, if it has one.", access: "r", cocoaKey: nil, isHidden: false)
             ],
             elements: [],
             respondsTo: ["close", "print", "save"],
@@ -199,9 +199,9 @@ private extension SDEFParser {
             description: "The application's top-level scripting object.",
             inherits: nil,
             properties: [
-                SDEFProperty(name: "name", code: "pnam", type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true), description: "The name of the application.", access: "r", isHidden: false),
-                SDEFProperty(name: "frontmost", code: "pisf", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Is this the active application?", access: "r", isHidden: false),
-                SDEFProperty(name: "version", code: "vers", type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true), description: "The version number of the application.", access: "r", isHidden: false)
+                SDEFProperty(name: "name", code: "pnam", type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true), description: "The name of the application.", access: "r", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "frontmost", code: "pisf", type: SDEFPropertyType(baseType: "boolean", isList: false, isOptional: true), description: "Is this the active application?", access: "r", cocoaKey: nil, isHidden: false),
+                SDEFProperty(name: "version", code: "vers", type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true), description: "The version number of the application.", access: "r", cocoaKey: nil, isHidden: false)
             ],
             elements: [
                 SDEFElement(type: "document", cocoaKey: nil),
@@ -441,12 +441,20 @@ private extension SDEFParser {
 
         let type = try parsePropertyType(from: element)
 
+        // Look for cocoa key
+        var cocoaKey: String?
+        if let cocoaElements = try? element.nodes(forXPath: ".//cocoa"),
+           let cocoaElement = cocoaElements.first as? XMLElement {
+            cocoaKey = cocoaElement.attribute(forName: "key")?.stringValue
+        }
+
         return SDEFProperty(
             name: name,
             code: code,
             type: type,
             description: description,
             access: access,
+            cocoaKey: cocoaKey,
             isHidden: isHidden
         )
     }

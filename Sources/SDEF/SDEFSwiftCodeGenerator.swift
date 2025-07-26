@@ -225,18 +225,15 @@ public typealias \(baseName)ElementArray = SBElementArray
             code += generateProperty(property)
         }
 
-        // Generate id() method for classes that have it
-        if sdefClass.properties.contains(where: { $0.name == "id" }) {
-            code += "    @objc optional func id() -> Int\n"
-        }
-
         // Generate element arrays
         for element in sdefClass.elements {
             // Look up the class to get its plural name
             var methodName: String
 
             // Find the class definition for this element type
-            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type }
+            // First check in regular classes, then in standard classes
+            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type } 
+                ?? model.standardClasses.first { $0.name == element.type }
 
             if let elementClass = elementClass, let pluralName = elementClass.pluralName {
                 // Use the defined plural name and convert to camelCase
@@ -247,13 +244,23 @@ public typealias \(baseName)ElementArray = SBElementArray
                 methodName = swiftMethodName(pluralForm)
             }
 
+            // Add documentation if available
+            if let elementClass = elementClass, let description = elementClass.description {
+                code += "    /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
+            }
+            
             code += "    @objc optional func \(methodName)() -> SBElementArray\n"
         }
 
         // Generate setter methods only for write-only properties
         for property in sdefClass.properties {
             if property.access == "w" { // Write-only properties need explicit setter methods
-                let propertyName = swiftPropertyName(property.name)
+                let propertyName = if let cocoaKey = property.cocoaKey {
+                    // Cocoa keys are already in proper Swift naming convention
+                    escapeReservedKeyword(cocoaKey)
+                } else {
+                    swiftPropertyName(property.name)
+                }
                 let swiftType = swiftSetterParameterType(for: property.type)
 
                 // Generate DocC comment for setter
@@ -311,7 +318,9 @@ public typealias \(baseName)ElementArray = SBElementArray
             var methodName: String
 
             // Find the class definition for this element type
-            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type }
+            // First check in regular classes, then in standard classes
+            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type } 
+                ?? model.standardClasses.first { $0.name == element.type }
 
             if let elementClass = elementClass, let pluralName = elementClass.pluralName {
                 // Use the defined plural name and convert to camelCase
@@ -322,6 +331,11 @@ public typealias \(baseName)ElementArray = SBElementArray
                 methodName = swiftMethodName(pluralForm)
             }
 
+            // Add documentation if available
+            if let elementClass = elementClass, let description = elementClass.description {
+                code += "    /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
+            }
+            
             code += "    @objc optional func \(methodName)() -> SBElementArray\n"
         }
 
@@ -344,13 +358,15 @@ public typealias \(baseName)ElementArray = SBElementArray
             code += "    /// \(description.capitalizingFirstLetter())\n"
         }
 
-        let propertyName = swiftPropertyName(property.name)
-        let swiftType = swiftType(for: property.type)
-
-        // Special handling for id property - make it a method
-        if property.name == "id" {
-            return "" // Skip generating property for id, it will be handled as a method
+        // Use cocoa key if available, otherwise use the property name
+        let propertyName = if let cocoaKey = property.cocoaKey {
+            // Cocoa keys are already in proper Swift naming convention (e.g., isShared)
+            // Just escape reserved keywords if needed
+            escapeReservedKeyword(cocoaKey)
+        } else {
+            swiftPropertyName(property.name)
         }
+        let swiftType = swiftType(for: property.type)
 
         let accessors = switch property.access {
         case "r":
@@ -391,7 +407,9 @@ public typealias \(baseName)ElementArray = SBElementArray
         // MARK: - Application Protocol
 
         @objc public protocol \(baseName)ApplicationProtocol: SBApplicationProtocol {
+            /// Array of document objects - A document.
             @objc optional func documents() -> SBElementArray
+            /// Array of window objects - A window.
             @objc optional func windows() -> SBElementArray
         }
 
