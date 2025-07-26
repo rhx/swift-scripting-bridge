@@ -86,7 +86,7 @@ public extension SDEFLibrary {
     ///   - verbose: Whether to provide detailed logging during the generation process
     /// - Returns: A configured SDEF Swift generator ready to process the file
     static func generator(for sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool = false, generateClassNamesEnum: Bool = true, shouldGenerateStronglyTypedExtensions: Bool = false, verbose: Bool = false) -> SDEFSwiftGenerator {
-        return SDEFSwiftGenerator(sdefURL: sdefURL, basename: basename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions, verbose: verbose)
+        return SDEFSwiftGenerator(sdefURL: sdefURL, basename: basename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions, shouldGenerateRecursively: false, verbose: verbose)
     }
 
     /// Parses an SDEF file and generates Swift code in a single operation.

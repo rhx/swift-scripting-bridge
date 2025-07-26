@@ -7,6 +7,25 @@
 //
 import Foundation
 
+/// Information about an included SDEF file that was processed during parsing.
+///
+/// When an SDEF file includes other definitions via xi:include directives, this structure
+/// tracks the information needed to generate separate Swift files for the included content.
+public struct SDEFInclude: Codable {
+    /// The original href URL from the xi:include directive
+    public let href: String
+    /// The basename that should be used for the generated Swift file
+    public let basename: String
+    /// The model containing all definitions from the included file
+    public let model: SDEFModel
+
+    public init(href: String, basename: String, model: SDEFModel) {
+        self.href = href
+        self.basename = basename
+        self.model = model
+    }
+}
+
 /// A complete SDEF (Scripting Definition) model representing the structure of an Apple Scripting Definition file.
 ///
 /// The `SDEFModel` serves as the root container for all scripting definitions parsed from an .sdef XML file.
@@ -20,15 +39,19 @@ public struct SDEFModel: Codable {
     public let suites: [SDEFSuite]
     /// The standard classes loaded from CocoaStandard.sdef
     public let standardClasses: [SDEFClass]
+    /// Information about included SDEF files that were processed
+    public let includes: [SDEFInclude]
 
     /// Creates a new SDEF model with the specified suites.
     ///
     /// - Parameters:
     ///   - suites: The scripting suites to include in this model
     ///   - standardClasses: The standard classes from CocoaStandard.sdef
-    public init(suites: [SDEFSuite], standardClasses: [SDEFClass] = []) {
+    ///   - includes: Information about included SDEF files that were processed
+    public init(suites: [SDEFSuite], standardClasses: [SDEFClass] = [], includes: [SDEFInclude] = []) {
         self.suites = suites
         self.standardClasses = standardClasses
+        self.includes = includes
     }
 }
 

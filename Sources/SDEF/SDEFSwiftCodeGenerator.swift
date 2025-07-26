@@ -24,6 +24,7 @@ public final class SDEFSwiftCodeGenerator {
     private let baseName: String
     private let shouldGenerateClassNamesEnum: Bool
     private let shouldGenerateStronglyTypedExtensions: Bool
+    private let isIncludedFile: Bool
     private let verbose: Bool
 
     /// Creates a new Swift code generator with the specified configuration.
@@ -38,12 +39,14 @@ public final class SDEFSwiftCodeGenerator {
     ///   - basename: The prefix to use for all generated Swift types
     ///   - shouldGenerateClassNamesEnum: Whether to generate an enum containing all scripting class names
     ///   - shouldGenerateStronglyTypedExtensions: Whether to generate strongly typed accessor extensions
+    ///   - isIncludedFile: Whether this is an included file (skips foundation protocols)
     ///   - verbose: Whether to enable detailed logging during code generation
-    public init(model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, verbose: Bool) {
+    public init(model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, isIncludedFile: Bool = false, verbose: Bool) {
         self.model = model
         self.baseName = basename
         self.shouldGenerateClassNamesEnum = shouldGenerateClassNamesEnum
         self.shouldGenerateStronglyTypedExtensions = shouldGenerateStronglyTypedExtensions
+        self.isIncludedFile = isIncludedFile
         self.verbose = verbose
     }
 
@@ -71,23 +74,28 @@ public final class SDEFSwiftCodeGenerator {
         import ScriptingBridge
         import AppKit
 
+        """
+
+        // Generate foundation protocols - always prefixed to avoid conflicts between different SDEF files
+        code += """
+
         /// Protocol for ScriptingBridge Objects.
         ///
         /// This protocol defines the basic functionality for ScriptingBridge objects.
-        @objc public protocol SBObjectProtocol: NSObjectProtocol {
+        @objc public protocol \(baseName)SBObjectProtocol: NSObjectProtocol {
             func get() -> Any!
         }
-        extension SBObject: SBObjectProtocol {}
+        extension SBObject: \(baseName)SBObjectProtocol {}
 
         /// Protocol for ScriptingBridge Applications.
         ///
         /// This protocol defines the basic functionality for ScriptingBridge applications.
-        @objc public protocol SBApplicationProtocol: SBObjectProtocol {
+        @objc public protocol \(baseName)SBApplicationProtocol: \(baseName)SBObjectProtocol {
             func activate()
             var delegate: SBApplicationDelegate! { get set }
             var isRunning: Bool { get }
         }
-        extension SBApplication: SBApplicationProtocol {}
+        extension SBApplication: \(baseName)SBApplicationProtocol {}
 
         """
 
@@ -206,7 +214,15 @@ public typealias \(baseName)ElementArray = SBElementArray
             code += "/// \(description.capitalizingFirstLetter())\n"
         }
 
-        var inheritanceList = ["SBObjectProtocol"]
+        var inheritanceList: [String]
+
+        // Application classes should inherit from SBApplicationProtocol, others from SBObjectProtocol
+        // Always use prefixed versions to avoid conflicts between different SDEF files
+        if sdefClass.name.lowercased() == "application" {
+            inheritanceList = ["\(baseName)SBApplicationProtocol"]
+        } else {
+            inheritanceList = ["\(baseName)SBObjectProtocol"]
+        }
 
         // Add GenericMethods for standard classes
         if ["window", "document", "application"].contains(sdefClass.name.lowercased()) {
@@ -215,7 +231,16 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         if let inherits = sdefClass.inherits {
             let cleanInherits = swiftClassName(inherits)
-            inheritanceList.append("\(baseName)\(cleanInherits)")
+
+            // Check if the inherited class actually exists in the model
+            let allClasses = model.suites.flatMap { $0.classes } + model.standardClasses
+            let inheritsClassExists = allClasses.contains { $0.name.lowercased() == inherits.lowercased() }
+
+            if inheritsClassExists {
+                inheritanceList.append("\(baseName)\(cleanInherits)")
+            } else if verbose {
+                print("Warning: Class '\(sdefClass.name)' inherits from '\(inherits)' but '\(inherits)' is not defined in the SDEF model")
+            }
         }
 
         code += "@objc public protocol \(protocolName): \(inheritanceList.joined(separator: ", ")) {\n"
@@ -285,12 +310,20 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         code += "}\n"
 
-        // Generate SBObject extension
-        code += """
+        // Generate extension - SBApplication for application classes, SBObject for others
+        if sdefClass.name.lowercased() == "application" {
+            code += """
 
-        extension SBObject: \(protocolName) {}
+            extension SBApplication: \(protocolName) {}
 
-        """
+            """
+        } else {
+            code += """
+
+            extension SBObject: \(protocolName) {}
+
+            """
+        }
 
         return code
     }
@@ -390,6 +423,9 @@ public typealias \(baseName)ElementArray = SBElementArray
     }
 
     private func generateApplicationProtocol() -> String {
+        // Always use prefixed base protocol to avoid conflicts between different SDEF files
+        let applicationBaseProtocol = "\(baseName)SBApplicationProtocol"
+
         return """
 
         // MARK: - Save Options Enum
@@ -413,7 +449,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         // MARK: - Application Protocol
 
-        @objc public protocol \(baseName)ApplicationProtocol: SBApplicationProtocol {
+        @objc public protocol \(baseName)ApplicationProtocol: \(applicationBaseProtocol) {
             /// Array of document objects - A document.
             @objc optional func documents() -> SBElementArray
             /// Array of window objects - A window.
@@ -640,6 +676,8 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         """
 
+        // For included files, only process classes from the main suites (not standard classes)
+        // For main files, process all classes from main suites
         for suite in model.suites {
             for sdefClass in suite.classes {
                 if !sdefClass.elements.isEmpty {
@@ -651,10 +689,33 @@ public typealias \(baseName)ElementArray = SBElementArray
             }
         }
 
+        // For main files only, process standard classes that have elements
+        // but skip those that already have corresponding classes in the main suites
+        if !isIncludedFile {
+            let mainSuiteClassNames = Set(model.suites.flatMap { $0.classes }.map { $0.name.lowercased() })
+
+            for standardClass in model.standardClasses {
+                if !standardClass.elements.isEmpty {
+                    // Skip standard classes that have corresponding classes in main suites
+                    if mainSuiteClassNames.contains(standardClass.name.lowercased()) {
+                        if verbose {
+                            print("Skipping standard class '\(standardClass.name)' - already defined in main suites")
+                        }
+                        continue
+                    }
+
+                    if verbose {
+                        print("Processing standard class '\(standardClass.name)' with \(standardClass.elements.count) elements:")
+                    }
+                    code += generateStronglyTypedExtension(standardClass, suite: nil)
+                }
+            }
+        }
+
         return code
     }
 
-    private func generateStronglyTypedExtension(_ sdefClass: SDEFClass, suite: SDEFSuite) -> String {
+    private func generateStronglyTypedExtension(_ sdefClass: SDEFClass, suite: SDEFSuite?) -> String {
         let protocolName = "\(baseName)\(swiftClassName(sdefClass.name))"
 
         var code = """

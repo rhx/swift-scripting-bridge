@@ -24,6 +24,7 @@ public final class SDEFSwiftGenerator {
     private let includeHidden: Bool
     private let generateClassNamesEnum: Bool
     private let shouldGenerateStronglyTypedExtensions: Bool
+    private let shouldGenerateRecursively: Bool
     private let verbose: Bool
 
     /// Creates a new SDEF Swift generator with the specified configuration.
@@ -40,14 +41,16 @@ public final class SDEFSwiftGenerator {
     ///   - includeHidden: Whether to include definitions marked as hidden in the SDEF
     ///   - generateClassNamesEnum: Whether to generate an enum containing all scripting class names
     ///   - shouldGenerateStronglyTypedExtensions: Whether to generate strongly typed accessor extensions
+    ///   - shouldGenerateRecursively: Whether to recursively generate files for included SDEF files
     ///   - verbose: Whether to provide detailed logging during the generation process
-    public init(sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool, generateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, verbose: Bool) {
+    public init(sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool, generateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, shouldGenerateRecursively: Bool, verbose: Bool) {
         self.sdefURL = sdefURL
         self.basename = basename
         self.outputDirectory = outputDirectory
         self.includeHidden = includeHidden
         self.generateClassNamesEnum = generateClassNamesEnum
         self.shouldGenerateStronglyTypedExtensions = shouldGenerateStronglyTypedExtensions
+        self.shouldGenerateRecursively = shouldGenerateRecursively
         self.verbose = verbose
     }
 
@@ -61,7 +64,7 @@ public final class SDEFSwiftGenerator {
     /// their base classes, and produces comprehensive Swift code that includes all necessary
     /// protocols, enumerations, and type definitions for complete Scripting Bridge integration.
     ///
-    /// - Returns: The URL of the generated Swift source file
+    /// - Returns: The URL of the main generated Swift source file
     /// - Throws: `RuntimeError` for any step that fails during the generation process
     public func generate() async throws -> URL {
         // Parse the SDEF file
@@ -84,7 +87,7 @@ public final class SDEFSwiftGenerator {
         }
 
         // Create the parser and parse the model
-        let parser = SDEFParser(document: xmlDocument, includeHidden: includeHidden, verbose: verbose)
+        let parser = SDEFParser(document: xmlDocument, includeHidden: includeHidden, trackIncludes: shouldGenerateRecursively, verbose: verbose)
         let sdefModel: SDEFModel
         do {
             sdefModel = try parser.parse()
@@ -118,7 +121,60 @@ public final class SDEFSwiftGenerator {
             throw RuntimeError("Cannot write output file: \(error.localizedDescription)")
         }
 
+        // Process includes recursively if enabled
+        if shouldGenerateRecursively {
+            try await processIncludes(sdefModel.includes)
+        }
+
         return outputURL
+    }
+
+    /// Processes included SDEF files and generates separate Swift files for each.
+    ///
+    /// When recursive generation is enabled, this method creates separate Swift files
+    /// for each included SDEF file (such as CocoaStandard.sdef). This ensures that
+    /// all definitions are available as separate modules and prevents duplicate
+    /// definitions when multiple SDEF files include the same standard definitions.
+    ///
+    /// - Parameters:
+    ///   - includes: Array of included SDEF files to process
+    /// - Throws: `RuntimeError` if any included file cannot be processed
+    private func processIncludes(_ includes: [SDEFInclude]) async throws {
+        for include in includes {
+            if verbose {
+                print("Generating Swift code for included file: \(include.basename)")
+            }
+
+            // Generate Swift code for the included model
+            let includeCodeGenerator = SDEFSwiftCodeGenerator(
+                model: include.model,
+                basename: include.basename,
+                shouldGenerateClassNamesEnum: generateClassNamesEnum,
+                shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions,
+                isIncludedFile: true,
+                verbose: verbose
+            )
+
+            let includeSwiftCode: String
+            do {
+                includeSwiftCode = try includeCodeGenerator.generateCode()
+            } catch {
+                throw RuntimeError("Failed to generate Swift code for \(include.basename): \(error.localizedDescription)")
+            }
+
+            // Write the included Swift file
+            let includeOutputURL = URL(fileURLWithPath: outputDirectory)
+                .appendingPathComponent("\(include.basename).swift")
+
+            do {
+                try includeSwiftCode.write(to: includeOutputURL, atomically: true, encoding: .utf8)
+                if verbose {
+                    print("Generated Swift file: \(includeOutputURL.path)")
+                }
+            } catch {
+                throw RuntimeError("Cannot write included output file \(include.basename).swift: \(error.localizedDescription)")
+            }
+        }
     }
 
     /// Validation errors that occur due to invalid command-line arguments or configuration.

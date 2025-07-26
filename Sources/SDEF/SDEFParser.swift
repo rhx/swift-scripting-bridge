@@ -21,8 +21,10 @@ public final class SDEFParser {
     private let document: XMLDocument
     private let includeHidden: Bool
     private let verbose: Bool
+    private let trackIncludes: Bool
     private var standardClasses: [String: SDEFClass] = [:]
     private var standardEnums: [String: SDEFEnumeration] = [:]
+    private var processedIncludes: [SDEFInclude] = []
 
     /// Creates a new SDEF parser with the specified configuration.
     ///
@@ -34,10 +36,12 @@ public final class SDEFParser {
     /// - Parameters:
     ///   - document: The XML document containing the SDEF content to parse
     ///   - includeHidden: Whether to include definitions marked as hidden
+    ///   - trackIncludes: Whether to track included SDEF files for recursive generation
     ///   - verbose: Whether to enable detailed logging during parsing
-    public init(document: XMLDocument, includeHidden: Bool, verbose: Bool) {
+    public init(document: XMLDocument, includeHidden: Bool, trackIncludes: Bool = false, verbose: Bool) {
         self.document = document
         self.includeHidden = includeHidden
+        self.trackIncludes = trackIncludes
         self.verbose = verbose
     }
 
@@ -68,7 +72,7 @@ public final class SDEFParser {
         // Merge class extensions with standard classes
         let mergedSuites = try mergeClassExtensions(suites)
 
-        return SDEFModel(suites: mergedSuites, standardClasses: Array(standardClasses.values))
+        return SDEFModel(suites: mergedSuites, standardClasses: Array(standardClasses.values), includes: processedIncludes)
     }
 }
 
@@ -126,6 +130,17 @@ private extension SDEFParser {
 
             if let cocoaRoot = cocoaDocument.rootElement() {
                 let cocoaSuites = try parseSuites(from: cocoaRoot)
+
+                // If tracking includes, create a model for CocoaStandard
+                if trackIncludes {
+                    let cocoaModel = SDEFModel(suites: cocoaSuites, standardClasses: [], includes: [])
+                    let cocoaInclude = SDEFInclude(
+                        href: "file://localhost/System/Library/ScriptingDefinitions/CocoaStandard.sdef",
+                        basename: "CocoaStandard",
+                        model: cocoaModel
+                    )
+                    processedIncludes.append(cocoaInclude)
+                }
 
                 // Store standard classes and enums for later merging
                 for suite in cocoaSuites {
