@@ -232,7 +232,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
             // Find the class definition for this element type
             // First check in regular classes, then in standard classes
-            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type } 
+            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type }
                 ?? model.standardClasses.first { $0.name == element.type }
 
             if let elementClass = elementClass, let pluralName = elementClass.pluralName {
@@ -248,7 +248,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             if let elementClass = elementClass, let description = elementClass.description {
                 code += "    /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
             }
-            
+
             code += "    @objc optional func \(methodName)() -> SBElementArray\n"
         }
 
@@ -319,7 +319,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
             // Find the class definition for this element type
             // First check in regular classes, then in standard classes
-            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type } 
+            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type }
                 ?? model.standardClasses.first { $0.name == element.type }
 
             if let elementClass = elementClass, let pluralName = elementClass.pluralName {
@@ -335,7 +335,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             if let elementClass = elementClass, let description = elementClass.description {
                 code += "    /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
             }
-            
+
             code += "    @objc optional func \(methodName)() -> SBElementArray\n"
         }
 
@@ -377,7 +377,14 @@ public typealias \(baseName)ElementArray = SBElementArray
             " { get set }"
         }
 
-        code += "    @objc optional var \(propertyName): \(swiftType)\(accessors)\n"
+        // If we're using a cocoa key that differs from the property name,
+        // we need to specify the original name for Objective-C
+        if let cocoaKey = property.cocoaKey, cocoaKey != property.name {
+            let objcName = swiftPropertyName(property.name)
+            code += "    @objc(\(objcName)) optional var \(propertyName): \(swiftType)\(accessors)\n"
+        } else {
+            code += "    @objc optional var \(propertyName): \(swiftType)\(accessors)\n"
+        }
 
         return code
     }
