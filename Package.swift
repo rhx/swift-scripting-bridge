@@ -23,6 +23,9 @@ let package = Package(
             targets: ["GenerateScriptingInterface"]),
         .library(name: "MusicScripting", targets: ["MusicScripting"]),
         .library(name: "NotesScripting", targets: ["NotesScripting"]),
+        .library(name: "MailScripting", targets: ["MailScripting"]),
+        .library(name: "TextEditScripting", targets: ["TextEditScripting"]),
+        .library(name: "ContactsScripting", targets: ["ContactsScripting"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0"),
@@ -45,6 +48,9 @@ let package = Package(
             ]),
         .target(name: "MusicScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .target(name: "NotesScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
+        .target(name: "MailScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
+        .target(name: "TextEditScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
+        .target(name: "ContactsScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .testTarget(
             name: "SwiftScriptingBridgeTests",
             dependencies: ["SwiftScriptingBridge"]),

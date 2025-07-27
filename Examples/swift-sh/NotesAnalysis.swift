@@ -20,7 +20,7 @@ print("   Accounts: \(accounts.count)")
 // Show accounts and their notes
 print("\n🏦 Accounts:")
 for account in accounts {
-    let accountName = account.name ?? "Unknown Account"
+    let accountName = account.name
     let noteCount = account.notes.count
     print("   • \(accountName): \(noteCount) notes")
 }
@@ -32,7 +32,7 @@ let maxToShow = min(5, totalNotes)
 for i in 0..<maxToShow {
     let note = app.notes[i]
     let title = note.name ?? "Untitled Note"
-    let body = note.body ?? ""
+    let body = note.body
     let preview = String(body.prefix(80)).replacingOccurrences(of: "\n", with: " ")
 
     print("   \(i+1). \(title)")
@@ -49,10 +49,12 @@ for i in 0..<maxToShow {
     }
 
     // Show additional properties
-    if let isShared = note.isShared, isShared {
+    let isShared = note.isShared ?? false
+    if isShared {
         print("      🔗 Shared")
     }
-    if let isPasswordProtected = note.isPasswordProtected, isPasswordProtected {
+    let isPasswordProtected = note.isPasswordProtected ?? false
+    if isPasswordProtected {
         print("      🔒 Password Protected")
     }
     print("")

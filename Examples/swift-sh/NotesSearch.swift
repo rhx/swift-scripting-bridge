@@ -22,7 +22,7 @@ print("   Folders: \(folders.count)")
 // Show accounts
 print("\n🏦 Accounts:")
 for account in accounts {
-    let accountName = account.name ?? "Unknown Account"
+    let accountName = account.name
     let noteCount = account.notes.count
     print("   • \(accountName) (\(noteCount) notes)")
 }
@@ -33,7 +33,7 @@ if folders.count > 0 {
     let maxFoldersToShow = min(10, folders.count)
     for i in 0..<maxFoldersToShow {
         let folder = folders[i]
-        let folderName = folder.name ?? "Unknown Folder"
+        let folderName = folder.name
         let noteCount = folder.notes.count
         print("   • \(folderName) (\(noteCount) notes)")
     }
@@ -46,7 +46,7 @@ let maxNotesToShow = min(10, totalNotes)
 for i in 0..<maxNotesToShow {
     let note = app.notes[i]
     let title = note.name ?? "Untitled Note"
-    let bodyPreview = note.body?.prefix(50) ?? ""
+    let bodyPreview = note.body.prefix(50)
     let cleanPreview = String(bodyPreview).replacingOccurrences(of: "\n", with: " ")
 
     // Show creation and modification dates if available
@@ -63,12 +63,14 @@ for i in 0..<maxNotesToShow {
     }
 
     // Show if note is shared
-    if let isShared = note.isShared, isShared {
+    let isShared = note.isShared ?? false
+    if isShared {
         print("     🔗 Shared")
     }
 
     // Show if note is password protected
-    if let isPasswordProtected = note.isPasswordProtected, isPasswordProtected {
+    let isPasswordProtected = note.isPasswordProtected ?? false
+    if isPasswordProtected {
         print("     🔒 Password Protected")
     }
 }
@@ -83,7 +85,7 @@ print("\n🔍 Notes containing '\(searchTerm)':")
 
 var foundNotes = 0
 for note in app.notes {
-    if let body = note.body, body.localizedCaseInsensitiveContains(searchTerm) {
+    if note.body.localizedCaseInsensitiveContains(searchTerm) {
         let title = note.name ?? "Untitled Note"
         print("   • \(title)")
         foundNotes += 1

@@ -7,6 +7,5 @@ guard let app else { fatalError("Could not access Notes") }
 print("Got \(app.notes.count) notes")
 guard let firstNote = app.notes.first else { exit(EXIT_SUCCESS)  }
 print("First note: " + (firstNote.name ?? "<unnamed>"), terminator: "")
-if let isShared = firstNote.isShared {
-    print(isShared ? " is shared" : " is not shared")
-}
+let isShared = firstNote.isShared ?? false
+print(isShared ? " is shared" : " is not shared")

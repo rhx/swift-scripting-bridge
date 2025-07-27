@@ -6,13 +6,10 @@ guard let app else { fatalError("Could not access Notes") }
 print("Got \(app.notes.count) notes")
 guard let firstNote = app.notes.first else { exit(EXIT_FAILURE)  }
 print("First note: " + (firstNote.name ?? "<unnamed>"))
-if let isShared = firstNote.isShared {
-    print(isShared ? " is shared" : " is not shared")
-}
-if let body = firstNote.body {
-    print(body)
-}
-if !(app.isActive ?? false) {
+let isShared = firstNote.isShared
+print(isShared ? " is shared" : " is not shared")
+print(firstNote.body ?? "")
+if !app.isActive {
     app.activate()
 }
 app.windows.forEach { window in
