@@ -46,7 +46,7 @@ let maxNotesToShow = min(10, totalNotes)
 for i in 0..<maxNotesToShow {
     let note = app.notes[i]
     let title = note.name ?? "Untitled Note"
-    let bodyPreview = note.body.prefix(50)
+    let bodyPreview = (note.body ?? "").prefix(50)
     let cleanPreview = String(bodyPreview).replacingOccurrences(of: "\n", with: " ")
 
     // Show creation and modification dates if available
@@ -85,7 +85,7 @@ print("\n🔍 Notes containing '\(searchTerm)':")
 
 var foundNotes = 0
 for note in app.notes {
-    if note.body.localizedCaseInsensitiveContains(searchTerm) {
+    if (note.body ?? "").localizedCaseInsensitiveContains(searchTerm) {
         let title = note.name ?? "Untitled Note"
         print("   • \(title)")
         foundNotes += 1

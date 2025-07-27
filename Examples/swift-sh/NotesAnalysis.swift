@@ -32,7 +32,7 @@ let maxToShow = min(5, totalNotes)
 for i in 0..<maxToShow {
     let note = app.notes[i]
     let title = note.name ?? "Untitled Note"
-    let body = note.body
+    let body = note.body ?? ""
     let preview = String(body.prefix(80)).replacingOccurrences(of: "\n", with: " ")
 
     print("   \(i+1). \(title)")
