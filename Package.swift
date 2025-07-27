@@ -15,15 +15,14 @@ let package = Package(
         .library(
             name: "SDEF",
             targets: ["SDEF"]),
-        .library(
-            name: "NotesScripting",
-            targets: ["NotesScripting"]),
         .executable(
             name: "sdef2swift",
             targets: ["sdef2swift"]),
         .plugin(
             name: "GenerateScriptingInterface",
             targets: ["GenerateScriptingInterface"]),
+        .library(name: "MusicScripting", targets: ["MusicScripting"]),
+        .library(name: "NotesScripting", targets: ["NotesScripting"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0"),
@@ -44,6 +43,7 @@ let package = Package(
                 "SDEF",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]),
+        .target(name: "MusicScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .target(name: "NotesScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .testTarget(
             name: "SwiftScriptingBridgeTests",
