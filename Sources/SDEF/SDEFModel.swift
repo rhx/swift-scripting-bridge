@@ -269,7 +269,7 @@ public struct SDEFProperty: Codable {
     ///   - access: Access permissions string, or nil for read-write
     ///   - cocoaKey: The Cocoa key name, or nil if not specified
     ///   - isHidden: Whether the property is hidden from normal use
-    public init(name: String, code: String, type: SDEFPropertyType, description: String?, access: String?, cocoaKey: String?, isHidden: Bool) {
+    public init(name: String, code: String, type: SDEFPropertyType, description: String? = nil, access: String? = nil, cocoaKey: String? = nil, isHidden: Bool = false) {
         self.name = name
         self.code = code
         self.type = type

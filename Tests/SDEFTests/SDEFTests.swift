@@ -29,6 +29,7 @@ struct SDEFTests {
             type: SDEFPropertyType(baseType: "text", isList: false, isOptional: true),
             description: "A test property",
             access: "r",
+            cocoaKey: nil,
             isHidden: false
         )
 
