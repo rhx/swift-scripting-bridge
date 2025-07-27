@@ -197,11 +197,6 @@ public enum Safari {
 }
 ```
 
-### Compatibility Options
-
-- **`--prefixed`**: Generates prefixed typealiases for backward compatibility (e.g., `SafariApplication`)
-- **`--flat`**: Generates unprefixed typealiases for when using the code as a separate module
-
 ## Using Generated Code
 
 Once you have generated Swift code, you can use it in your projects, e.g.:
@@ -212,47 +207,25 @@ import ScriptingBridge
 @main
 struct NotesMain {
     static func main() {
-        // Using the namespace approach
-        let notesApp: NotesApplication? = SBApplication(bundleIdentifier: "com.apple.Notes")
-        guard let notesApp else { fatalError("Could not access Notes") }
-
-        // Access properties and elements
-        let notes = notesApp.notesNotes
-        print("Got \(notes.count) notes")
-
-        guard let firstNote = notes.first else { return }
+        let app: Notes.Application? = SBApplication(bundleIdentifier: "com.apple.Notes")
+        guard let app else { fatalError("Could not access Notes") }
+        print("Got \(app.notes.count) notes")
+        guard let firstNote = app.notes.first else { return }
         print("First note: " + (firstNote.name ?? "<unnamed>"))
-
         if let isShared = firstNote.isShared {
             print(isShared  ? " is shared" : " is not shared")
         }
-
-        if let body = firstNote.scriptingBody {
+        if let body = firstNote.body {
             print(body)
         }
-
-        if !(notesApp.isActive ?? false) {
-            notesApp.activate()
+        if !(app.isActive ?? false) {
+            app.activate()
+        }
+        app.windows.forEach { window in
+            window.closeSaving?(.no, savingIn: nil)
         }
     }
-}
-```
-
-### With Namespace (new default)
-
-```swift
-// Types are now accessed through the namespace
-let saveOption: Safari.SaveOptions = .yes
-let elementArray: Safari.ElementArray = safariApp.windows()
-```
-
-### With --prefixed option (backward compatibility)
-
-```swift
-// Traditional prefixed approach
-let saveOption: SafariSaveOptions = .yes
-let elementArray: SafariElementArray = safariApp.windows()
-```
+}```
 
 ## Requirements
 

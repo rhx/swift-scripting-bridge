@@ -401,7 +401,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 code += "    /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
             }
 
-            code += "    @objc optional func \(methodName)() -> SBElementArray\n"
+            code += "    @objc(\(methodName)) optional func untyped\(methodName.capitalizingFirstLetter())() -> SBElementArray\n"
         }
 
         // Generate setter methods only for write-only properties
@@ -496,7 +496,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 code += "    /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
             }
 
-            code += "    @objc optional func \(methodName)() -> SBElementArray\n"
+            code += "    @objc(\(methodName)) optional func untyped\(methodName.capitalizingFirstLetter())() -> SBElementArray\n"
         }
 
         code += "}\n"
@@ -585,7 +585,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 code += "        /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
             }
 
-            code += "        @objc optional func \(methodName)() -> SBElementArray\n"
+            code += "        @objc(\(methodName)) optional func untyped\(methodName.capitalizingFirstLetter())() -> SBElementArray\n"
         }
 
         // Generate setter methods only for write-only properties
@@ -665,7 +665,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 code += "        /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
             }
 
-            code += "        @objc optional func \(methodName)() -> SBElementArray\n"
+            code += "        @objc(\(methodName)) optional func untyped\(methodName.capitalizingFirstLetter())() -> SBElementArray\n"
         }
 
         code += "    }\n"
@@ -701,8 +701,9 @@ public typealias \(baseName)ElementArray = SBElementArray
             "{ get set }"
         }
 
-        // Add @objc attribute with original name mapping
-        let objcName = property.cocoaKey ?? property.name
+        // Always use the original SDEF property name for @objc attribute for ABI compatibility
+        // Convert to valid Swift identifier (camelCase) if needed
+        let objcName = swiftPropertyName(property.name)
         code += "        @objc(\(objcName)) optional var \(propertyName): \(swiftType) \(accessors)\n"
 
         return code
@@ -772,14 +773,10 @@ public typealias \(baseName)ElementArray = SBElementArray
             " { get set }"
         }
 
-        // If we're using a cocoa key that differs from the property name,
-        // we need to specify the original name for Objective-C
-        if let cocoaKey = property.cocoaKey, cocoaKey != property.name {
-            let objcName = swiftPropertyName(property.name)
-            code += "    @objc(\(objcName)) optional var \(propertyName): \(swiftType)\(accessors)\n"
-        } else {
-            code += "    @objc optional var \(propertyName): \(swiftType)\(accessors)\n"
-        }
+        // Always use the original SDEF property name for @objc attribute for ABI compatibility
+        // Convert to valid Swift identifier (camelCase) if needed
+        let objcName = swiftPropertyName(property.name)
+        code += "    @objc(\(objcName)) optional var \(propertyName): \(swiftType)\(accessors)\n"
 
         return code
     }
@@ -1178,22 +1175,70 @@ public typealias \(baseName)ElementArray = SBElementArray
             }
 
             let elementTypeName = "\(baseName).\(swiftClassName(element.type))"
-            let prefixedPropertyName = baseName.lowercaseFirstLetter() + pluralPropertyName.capitalizingFirstLetter()
+            let untypedMethodName = "untyped" + methodName.capitalizingFirstLetter()
 
             code += """
 
                 /// Strongly typed accessor for \(element.type) elements
-                var \(prefixedPropertyName): [\(elementTypeName)] {
-                    \(methodName)?() as? [\(elementTypeName)] ?? []
+                var \(pluralPropertyName): [\(elementTypeName)] {
+                    \(untypedMethodName)?() as? [\(elementTypeName)] ?? []
                 }
             """
         }
+
+        // Also generate property aliases based on Objective-C names
+        code += generatePropertyAliases(sdefClass)
 
         code += """
 
         }
 
         """
+
+        return code
+    }
+
+    private func generatePropertyAliases(_ sdefClass: SDEFClass) -> String {
+        var code = ""
+
+        // Generate aliases for properties where Cocoa key differs from original property name
+        for property in sdefClass.properties {
+            guard let cocoaKey = property.cocoaKey else { continue }
+
+            // Only generate alias if the Cocoa key is different from the original property name
+            let objcPropertyName = swiftPropertyName(property.name)
+            let swiftPropertyName = escapeReservedKeyword(cocoaKey)
+
+            // Skip if they're the same (no alias needed)
+            guard objcPropertyName != swiftPropertyName else { continue }
+
+            // For property aliases in extensions, we need to use the correct type references
+            let baseTypeName = swiftNamespacedTypeName(property.type.baseType)
+
+            // Only prefix with namespace for class types, not basic types
+            var swiftType: String
+            let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "[String: Any]", "Any", "NSNull", "NSRect", "NSNumber", "NSPoint", "NSSize", "SBObject"]
+            if basicTypes.contains(baseTypeName) {
+                swiftType = baseTypeName
+            } else {
+                swiftType = "\(baseName).\(baseTypeName)"
+            }
+
+            if property.type.isList {
+                swiftType = "[\(swiftType)]"
+            }
+
+            // Generate getter/setter based on property access
+            // Since protocol properties are optional, make the aliases optional too
+            let optionalSwiftType = swiftType.hasSuffix("?") ? swiftType : "\(swiftType)?"
+
+            // Protocol extensions can't have computed property setters, so make all aliases read-only
+            code += """
+
+                /// Objective-C style alias for \(swiftPropertyName)
+                var \(objcPropertyName): \(optionalSwiftType) { \(swiftPropertyName) }
+            """
+        }
 
         return code
     }
