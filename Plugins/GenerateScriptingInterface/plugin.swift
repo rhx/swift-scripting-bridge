@@ -35,7 +35,15 @@ struct GenerateScriptingInterface: BuildToolPlugin {
             let outputDir = context.pluginWorkDirectoryURL
 
             // Extract base name from the .sdef/.sdefstub file name
-            let baseName = sdefFile.url.deletingPathExtension().lastPathComponent
+            var baseName = sdefFile.url.deletingPathExtension().lastPathComponent
+
+            // Handle inverse-DNS naming scheme (e.g., com.apple.Music -> Music, org.mozilla.Firefox -> Firefox)
+            // If the name contains dots and starts with a lowercase component, extract the last component
+            let components = baseName.split(separator: ".")
+            if components.count > 1, let firstChar = components.first?.first, firstChar.isLowercase {
+                baseName = String(components.last!)
+            }
+
             let outputFile = outputDir.appendingPathComponent("\(baseName).swift")
 
             // Get the path to the sdef2swift tool
@@ -64,8 +72,9 @@ struct GenerateScriptingInterface: BuildToolPlugin {
                 let isEmpty = (try? Data(contentsOf: url))?.isEmpty ?? false
 
                 if isStubFile || isEmpty {
-                    // Return just the basename - let sdef2swift handle the search
-                    resolvedSdefPath = baseName
+                    // For stub files, pass the full filename (without extension) to sdef2swift
+                    // so it can find files like com.apple.Music.sdef
+                    resolvedSdefPath = sdefFile.url.deletingPathExtension().lastPathComponent
                 }
             }
 
