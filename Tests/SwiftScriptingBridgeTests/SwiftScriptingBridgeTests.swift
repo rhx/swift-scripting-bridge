@@ -65,10 +65,12 @@ struct AppLocatorTests {
     func testDefaultAppLocations() {
         let locations = defaultAppLocations
 
-        #expect(locations.count == 3)
+        #expect(locations.count == 5)
         #expect(locations.contains { $0.path == "/Applications" })
+        #expect(locations.contains { $0.path == "/Applications/Utilities" })
         #expect(locations.contains { $0.path == "/System/Library/CoreServices" })
         #expect(locations.contains { $0.path == "/System/Applications" })
+        #expect(locations.contains { $0.path == "/System/Applications/Utilities" })
     }
 
     @Test("App creation with bundle identifier")
@@ -438,7 +440,7 @@ struct PerformanceTests {
             }
         }
 
-        #expect(locations.count == 3)
+        #expect(locations.count == 5)
     }
 
     @Test("Multiple app creation performance", .timeLimit(.minutes(1)))

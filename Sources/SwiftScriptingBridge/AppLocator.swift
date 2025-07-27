@@ -95,6 +95,8 @@ public func app<T: SBApplicationProtocol>(withIdentifier bundleIdentifier: Strin
 /// These locations are searched when looking for applications.
 public let defaultAppLocations: [URL] = [
     URL(filePath: "/Applications", directoryHint: .isDirectory),
+    URL(filePath: "/Applications/Utilities", directoryHint: .isDirectory),
     URL(filePath: "/System/Library/CoreServices", directoryHint: .isDirectory),
-    URL(filePath: "/System/Applications", directoryHint: .isDirectory)
+    URL(filePath: "/System/Applications", directoryHint: .isDirectory),
+    URL(filePath: "/System/Applications/Utilities", directoryHint: .isDirectory)
 ]
