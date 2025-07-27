@@ -43,6 +43,6 @@ let package = Package(
             dependencies: ["SwiftScriptingBridge"]),
         .testTarget(
             name: "SDEFTests",
-            dependencies: ["SDEF"]),
+            dependencies: ["SDEF", "sdef2swift"]),
     ]
 )

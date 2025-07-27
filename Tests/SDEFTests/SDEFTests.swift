@@ -8,6 +8,7 @@
 import Foundation
 import Testing
 @testable import SDEF
+@testable import sdef2swift
 
 /// Tests for the SDEF library functionality.
 ///
@@ -1265,5 +1266,139 @@ struct SDEFTests {
         #expect(swiftCode.contains("// MARK: - Prefixed Type Aliases"))
         #expect(swiftCode.contains("public typealias TestObject = Test.Object"))
         #expect(swiftCode.contains("public typealias TestElementArray = Test.ElementArray"))
+    }
+    
+    @Test func testSearchPathFunctionality() throws {
+        // Test that search path can find files in application bundles
+        // Note: This test depends on system applications being present
+        
+        // Create a temporary directory with a test .sdef file
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("sdef_test_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
+        
+        // Create a simple test .sdef file
+        let testSdefContent = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+        <dictionary title="Test Terminology">
+            <suite name="Standard Suite" code="core" description="Common classes and commands">
+                <class name="application" code="capp" description="The application">
+                    <property name="name" code="pnam" type="text" description="The name of the application."/>
+                </class>
+            </suite>
+        </dictionary>
+        """
+        
+        let testSdefURL = tempDir.appendingPathComponent("TestApp.sdef")
+        try testSdefContent.write(to: testSdefURL, atomically: true, encoding: .utf8)
+        
+        // Test absolute path resolution
+        var command1 = SDEFToSwift()
+        command1.sdefPath = testSdefURL.path
+        command1.outputDirectory = tempDir.path
+        command1.verbose = false
+        
+        let resolvedURL1 = try command1.resolveSDEFPath(command1.sdefPath)
+        #expect(resolvedURL1.path == testSdefURL.path)
+        
+        // Test search path resolution
+        var command2 = SDEFToSwift()
+        command2.sdefPath = "TestApp.sdef"
+        command2.outputDirectory = tempDir.path
+        command2.searchPath = [tempDir.path]
+        command2.verbose = false
+        
+        let resolvedURL2 = try command2.resolveSDEFPath(command2.sdefPath)
+        #expect(resolvedURL2.path == testSdefURL.path)
+        
+        // Test without .sdef extension
+        var command3 = SDEFToSwift()
+        command3.sdefPath = "TestApp"
+        command3.outputDirectory = tempDir.path
+        command3.searchPath = [tempDir.path]
+        command3.verbose = false
+        
+        let resolvedURL3 = try command3.resolveSDEFPath(command3.sdefPath)
+        #expect(resolvedURL3.path == testSdefURL.path)
+        
+        // Test colon-separated search paths
+        var command4 = SDEFToSwift()
+        command4.sdefPath = "TestApp"
+        command4.outputDirectory = tempDir.path
+        command4.searchPath = ["/nonexistent:\(tempDir.path):/another"]
+        command4.verbose = false
+        
+        let resolvedURL4 = try command4.resolveSDEFPath(command4.sdefPath)
+        #expect(resolvedURL4.path == testSdefURL.path)
+        
+        // Test file not found
+        var command5 = SDEFToSwift()
+        command5.sdefPath = "NonexistentApp"
+        command5.outputDirectory = tempDir.path
+        command5.searchPath = [tempDir.path]
+        command5.verbose = false
+        
+        #expect(throws: (any Error).self) {
+            try command5.resolveSDEFPath(command5.sdefPath)
+        }
+    }
+    
+    @Test func testApplicationBundleSearching() throws {
+        // Create a temporary app bundle structure for testing
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("bundle_test_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
+        
+        // Create app bundle structure
+        let appBundle = tempDir.appendingPathComponent("TestApp.app")
+        let contentsDir = appBundle.appendingPathComponent("Contents")
+        let resourcesDir = contentsDir.appendingPathComponent("Resources")
+        try FileManager.default.createDirectory(at: resourcesDir, withIntermediateDirectories: true)
+        
+        // Create test .sdef file inside bundle
+        let testSdefContent = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+        <dictionary title="Test Bundle Terminology">
+            <suite name="Standard Suite" code="core" description="Common classes and commands">
+                <class name="application" code="capp" description="The application">
+                    <property name="name" code="pnam" type="text" description="The name of the application."/>
+                </class>
+            </suite>
+        </dictionary>
+        """
+        
+        let sdefInBundle = resourcesDir.appendingPathComponent("TestApp.sdef")
+        try testSdefContent.write(to: sdefInBundle, atomically: true, encoding: .utf8)
+        
+        // Test that we can find the .sdef file inside the app bundle
+        var command = SDEFToSwift()
+        command.sdefPath = "TestApp"
+        command.outputDirectory = tempDir.path
+        command.searchPath = [tempDir.path]
+        command.verbose = false
+        
+        let resolvedURL = try command.resolveSDEFPath(command.sdefPath)
+        #expect(resolvedURL.path == sdefInBundle.path)
+    }
+    
+    @Test func testDefaultSearchPaths() throws {
+        var command = SDEFToSwift()
+        command.searchPath = [] // No custom search paths
+        
+        let defaultPaths = command.getSearchPaths()
+        
+        // Should include common macOS directories
+        #expect(defaultPaths.contains("."))
+        
+        // Check that non-existent paths are filtered out
+        for path in defaultPaths {
+            #expect(FileManager.default.fileExists(atPath: path))
+        }
     }
 }

@@ -87,6 +87,10 @@ struct SDEFToSwift: AsyncParsableCommand {
     @Flag(name: .shortAndLong, help: "Generate flat (unprefixed) typealiases for types, useful when using generated code as a separate module")
     var flat = false
 
+    /// Search paths for .sdef files
+    @Option(name: .shortAndLong, help: "Search path for .sdef files (colon-separated directories). Can be specified multiple times.")
+    var searchPath: [String] = []
+
     /// Executes the main command logic to generate Swift code from the SDEF file.
     ///
     /// This method handles the complete workflow from validating input parameters to generating
@@ -100,15 +104,11 @@ struct SDEFToSwift: AsyncParsableCommand {
     ///
     /// - Throws: `ValidationError` for invalid input parameters, `RuntimeError` for processing failures
     func run() async throws {
-        let sdefURL = URL(fileURLWithPath: sdefPath)
+        // Resolve the SDEF file path using search paths
+        let sdefURL = try resolveSDEFPath(sdefPath)
 
-        // Validate input file
-        guard FileManager.default.fileExists(atPath: sdefPath) else {
-            throw SDEFSwiftGenerator.ValidationError("SDEF file not found: \(sdefPath)")
-        }
-
-        guard sdefURL.pathExtension.lowercased() == "sdef" else {
-            throw SDEFSwiftGenerator.ValidationError("Input file must have .sdef extension")
+        if verbose {
+            print("Resolved SDEF file: \(sdefURL.path)")
         }
 
         // Validate output directory
@@ -147,5 +147,97 @@ struct SDEFToSwift: AsyncParsableCommand {
         } catch {
             throw SDEFSwiftGenerator.RuntimeError("Failed to generate Swift code: \(error.localizedDescription)")
         }
+    }
+
+    /// Resolves the SDEF file path using search paths.
+    ///
+    /// This method implements comprehensive SDEF file resolution including:
+    /// - Direct path checking (if path exists as-is)
+    /// - Search path resolution with optional .sdef extension
+    /// - Application bundle searching (Contents/Resources)
+    /// - Default macOS application directories
+    ///
+    /// - Parameter path: The input path or filename to resolve
+    /// - Returns: A URL pointing to the resolved SDEF file
+    /// - Throws: `ValidationError` if the file cannot be found
+    func resolveSDEFPath(_ path: String) throws -> URL {
+        // If it's an absolute path or contains path separators and exists, use it directly
+        if path.hasPrefix("/") || path.contains("/") {
+            let url = URL(fileURLWithPath: path)
+            if FileManager.default.fileExists(atPath: url.path) {
+                guard url.pathExtension.lowercased() == "sdef" else {
+                    throw SDEFSwiftGenerator.ValidationError("Input file must have .sdef extension")
+                }
+                return url
+            }
+        }
+
+        // Build search paths
+        let searchPaths = getSearchPaths()
+
+        // Extract base name (with or without .sdef extension)
+        let baseName = path.hasSuffix(".sdef") ? String(path.dropLast(5)) : path
+        let candidateNames = ["\(baseName).sdef", baseName]
+
+        if verbose {
+            print("Searching for: \(candidateNames)")
+            print("Search paths: \(searchPaths)")
+        }
+
+        // Search through all paths
+        for searchPath in searchPaths {
+            for candidateName in candidateNames {
+                // Direct file in search path
+                let directPath = "\(searchPath)/\(candidateName)"
+                if FileManager.default.fileExists(atPath: directPath) && directPath.hasSuffix(".sdef") {
+                    return URL(fileURLWithPath: directPath)
+                }
+
+                // Search in .app bundles for .sdef files
+                let apps = try? FileManager.default.contentsOfDirectory(atPath: searchPath)
+                if let apps = apps {
+                    for app in apps where app.hasSuffix(".app") {
+                        let resourcesPath = "\(searchPath)/\(app)/Contents/Resources"
+                        let sdefInApp = "\(resourcesPath)/\(candidateName)"
+                        if FileManager.default.fileExists(atPath: sdefInApp) && sdefInApp.hasSuffix(".sdef") {
+                            return URL(fileURLWithPath: sdefInApp)
+                        }
+                    }
+                }
+            }
+        }
+
+        throw SDEFSwiftGenerator.ValidationError("SDEF file not found: \(path)")
+    }
+
+    /// Gets the list of search paths, combining user-specified paths with defaults.
+    ///
+    /// The search paths are constructed from:
+    /// 1. User-specified --search-path options (colon-separated)
+    /// 2. Default macOS application directories if no search paths specified
+    ///
+    /// - Returns: Array of directory paths to search
+    func getSearchPaths() -> [String] {
+        var paths: [String] = []
+
+        // Process user-specified search paths (colon-separated)
+        for pathSpec in searchPath {
+            paths.append(contentsOf: pathSpec.split(separator: ":").map(String.init))
+        }
+
+        // If no search paths specified, use defaults
+        if paths.isEmpty {
+            paths = [
+                ".",
+                "/Applications",
+                "/Applications/Utilities",
+                "/System/Applications",
+                "/System/Applications/Utilities",
+                "/System/Library/CoreServices",
+                "/Library/CoreServices"
+            ]
+        }
+
+        return paths.filter { FileManager.default.fileExists(atPath: $0) }
     }
 }

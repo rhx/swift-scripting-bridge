@@ -69,12 +69,27 @@ OPTIONS:
                          Generate strongly typed accessor extensions for element arrays (default: true)
   -p, --prefixed         Generate prefixed typealiases for backward compatibility
   -f, --flat             Generate flat (unprefixed) typealiases, e.g. when compiling in a separate module
+  -s, --search-path      Search path for .sdef files (colon-separated directories). Can be specified multiple times.
   -h, --help             Show help information
 ```
 
 ### Examples
 
-Generate Swift code for Safari:
+#### Simple Usage (with search paths)
+
+Find and generate Swift code for Finder (searches standard macOS directories automatically):
+```bash
+sdef2swift Finder
+```
+
+Find Safari without specifying full path or .sdef extension:
+```bash
+sdef2swift Safari --output-directory ./Generated
+```
+
+#### Traditional Usage (full paths)
+
+Generate Swift code for Safari using full path:
 ```bash
 sdef2swift /Applications/Safari.app/Contents/Resources/Safari.sdef
 ```
@@ -84,10 +99,74 @@ Generate with custom output directory and base name:
 sdef2swift Safari.sdef --output-directory ./Generated --basename SafariScripting
 ```
 
+#### Search Path Examples
+
+Use custom search paths (colon-separated):
+```bash
+sdef2swift --search-path /Applications:/System/Applications Safari
+```
+
+Use multiple search path options:
+```bash
+sdef2swift --search-path /Applications --search-path /custom/path Safari
+```
+
+Find apps in custom locations with verbose output:
+```bash
+sdef2swift --search-path /MyApps:/Applications MyApp --verbose
+```
+
+#### Manual .sdef extraction
+
 Extract .sdef from an application first, then generate Swift code:
 ```bash
 sdef /System/Applications/Mail.app > Mail.sdef
 sdef2swift Mail.sdef --verbose
+```
+
+## Search Path Feature
+
+The `--search-path` option allows you to find `.sdef` files without specifying full paths. This feature automatically searches:
+
+### Default Search Paths
+
+When no `--search-path` option is specified, sdef2swift searches these standard macOS directories:
+- `.` (current directory)
+- `/Applications`
+- `/Applications/Utilities`
+- `/System/Applications`
+- `/System/Applications/Utilities`
+- `/System/Library/CoreServices`
+- `/Library/CoreServices`
+
+### Application Bundle Support
+
+sdef2swift automatically searches inside application bundles at `Contents/Resources/` for `.sdef` files, so you can simply use:
+
+```bash
+sdef2swift Finder    # Finds /System/Library/CoreServices/Finder.app/Contents/Resources/Finder.sdef
+sdef2swift Safari    # Finds /Applications/Safari.app/Contents/Resources/Safari.sdef
+```
+
+### Extension Optional
+
+You can omit the `.sdef` extension - the tool will search for both `AppName.sdef` and `AppName`:
+
+```bash
+sdef2swift Finder      # Searches for both "Finder.sdef" and "Finder"
+sdef2swift Finder.sdef # Searches for both "Finder.sdef" and "Finder"
+```
+
+### Custom Search Paths
+
+Specify custom directories to search:
+
+```bash
+# Single path with colon-separated directories
+sdef2swift --search-path /MyApps:/Custom/Location AppName
+
+# Multiple search path options
+sdef2swift --search-path /MyApps --search-path /Another/Path AppName
 ```
 
 ## Generated Code Structure
@@ -103,13 +182,13 @@ public enum Safari {
     public typealias Application = SBApplication
     public typealias Object = SBObject
     public typealias ElementArray = SBElementArray
-    
+
     @objc public enum SaveOptions: AEKeyword {
         case yes = 0x79657320
         case no = 0x6e6f2020
         case ask = 0x61736b20
     }
-    
+
     public enum ClassNames {
         public static let application = "application"
         public static let document = "document"
@@ -136,22 +215,22 @@ struct NotesMain {
         // Using the namespace approach
         let notesApp: NotesApplication? = SBApplication(bundleIdentifier: "com.apple.Notes")
         guard let notesApp else { fatalError("Could not access Notes") }
-        
+
         // Access properties and elements
         let notes = notesApp.notesNotes
         print("Got \(notes.count) notes")
-        
+
         guard let firstNote = notes.first else { return }
         print("First note: " + (firstNote.name ?? "<unnamed>"))
-        
+
         if let isShared = firstNote.isShared {
             print(isShared  ? " is shared" : " is not shared")
         }
-        
+
         if let body = firstNote.scriptingBody {
             print(body)
         }
-        
+
         if !(notesApp.isActive ?? false) {
             notesApp.activate()
         }
