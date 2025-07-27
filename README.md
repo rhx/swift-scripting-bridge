@@ -1,12 +1,16 @@
 # Swift Scripting Bridge
 
-Native Swift utilities and to aid in using Swift with the Scripting Bridge.
-
+A native Swift library and toolset for controlling scriptable macOS applications through the Scripting Bridge framework. The main tool, `sdef2swift`, generates type-safe Swift code directly from Apple Scripting Definition (`.sdef`) files.
 
 
 # sdef2swift
 
-A command-line tool that generates Swift Scripting Bridge code directly from Apple Scripting Definition (.sdef) files.
+A command-line tool that generates Swift Scripting Bridge code directly from Apple Scripting Definition (.sdef) files.  This tool was inspired by projects such as
+[SwiftScripting](https://github.com/tingraldi/SwiftScripting) and
+[ScriptingBridgeGen](https://github.com/417-72KI/ScriptingBridgeGen),
+but unlike these projects, it uses pure Swift and does not require Python and llvm-swift
+to convert Objective-C back to Swift.
+Instead, it creates Swift code directly from an `SDEF` XML file.
 
 ## Overview
 
@@ -23,6 +27,9 @@ Scripting Bridge framework.
 - **Comprehensive Support**: Handles classes, protocols, enumerations, properties, and inheritance
 - **Clean Naming**: Converts Objective-C naming conventions to Swift-friendly names
 - **Documentation Preservation**: Maintains descriptions and comments from the original .sdef
+- **Recursive Generation**: Optionally generates separate files for included SDEF files (e.g., CocoaStandard.sdef)
+- **Strongly Typed Extensions**: Generates typed accessor extensions for element arrays
+- **Class Names Enumeration**: Optional generation of scripting class names enum
 
 ## Installation
 
@@ -55,6 +62,11 @@ OPTIONS:
   -b, --basename         Base name for generated files (default: derived from sdef filename)
   -i, --include-hidden   Include hidden definitions marked in the sdef
   -v, --verbose          Enable verbose output
+  -r, --recursive        Recursively generate separate Swift files for included SDEF files
+  -e, --generate-class-names-enum/--no-generate-class-names-enum
+                         Generate a public enum of scripting class names (default: true)
+  -x, --generate-strongly-typed-extensions/--no-generate-strongly-typed-extensions
+                         Generate strongly typed accessor extensions for element arrays (default: true)
   -h, --help             Show help information
 ```
 
@@ -72,122 +84,53 @@ sdef2swift Safari.sdef --output-directory ./Generated --basename SafariScripting
 
 Extract .sdef from an application first, then generate Swift code:
 ```bash
-sdef /Applications/Mail.app > Mail.sdef
+sdef /System/Applications/Mail.app > Mail.sdef
 sdef2swift Mail.sdef --verbose
-```
-
-## Generated Code Structure
-
-The generated Swift file includes:
-
-### Type Aliases
-```swift
-public typealias AppNameApplication = SBApplication
-public typealias AppNameObject = SBObject
-public typealias AppNameElementArray = SBElementArray
-```
-
-### Enumerations
-```swift
-@objc public enum AppNameSomeEnum: AEKeyword {
-    case option1 = 0x6f707431
-    case option2 = 0x6f707432
-}
-```
-
-### Protocols for Classes
-```swift
-@objc public protocol AppNameSomeClass: SBObject {
-    @objc optional var someProperty: String? { get set }
-    @objc optional func someElements() -> SBElementArray
-}
-
-extension SBObject: AppNameSomeClass {}
-```
-
-### Application Protocol
-```swift
-@objc public protocol AppNameApplicationProtocol: SBApplicationProtocol {
-    @objc optional func documents() -> SBElementArray
-    @objc optional func windows() -> SBElementArray
-}
-
-extension SBApplication: AppNameApplicationProtocol {}
 ```
 
 ## Using Generated Code
 
-Once you have generated Swift code, you can use it in your projects:
+Once you have generated Swift code, you can use it in your projects, e.g.:
 
 ```swift
 import ScriptingBridge
 
-// Cast SBApplication to your generated application protocol
-if let mail = SBApplication(bundleIdentifier: "com.apple.mail") as? MailApplicationProtocol {
-    // Use type-safe methods and properties
-    let accounts = mail.accounts?()
-    // ...
+@main
+struct NotesMain {
+    static func main() {
+        let notesApp: NotesApplication? = SBApplication(bundleIdentifier: "com.apple.Notes")
+        guard let notesApp else { fatalError("Could not access Notes") }
+        let notes = notesApp.notesNotes
+        print("Got \(notes.count) notes")
+        guard let firstNote = notes.first else { return }
+        print("First note: " + (firstNote.name ?? "<unnamed>"))
+        if let isShared = firstNote.isShared {
+            print(isShared  ? " is shared" : " is not shared")
+        }
+        if let body = firstNote.scriptingBody {
+            print(body)
+        }
+        if !(notesApp.isActive ?? false) {
+            notesApp.activate()
+        }
+    }
 }
+
 ```
-
-## Comparison with Other Tools
-
-| Tool | Input | Output | Direct Processing |
-|------|-------|--------|------------------|
-| `sdp -f h` | .sdef | Objective-C header | ✅ |
-| `sbhc.py` / `SBHC.swift` | Objective-C header | Swift | ❌ |
-| **`sdef2swift`** | .sdef | Swift | ✅ |
-
-## Technical Details
-
-### Supported SDEF Elements
-
-- ✅ Suites
-- ✅ Classes and class extensions
-- ✅ Properties with all access modifiers
-- ✅ Elements and element arrays
-- ✅ Enumerations and enumerators
-- ✅ Commands (basic support)
-- ✅ Inheritance relationships
-- ✅ Hidden element handling
-
-### Type Mapping
-
-| SDEF Type | Swift Type |
-|-----------|------------|
-| `text`, `string` | `String` |
-| `integer`, `int` | `Int` |
-| `real`, `double` | `Double` |
-| `boolean`, `bool` | `Bool` |
-| `date` | `Date` |
-| `file`, `alias` | `URL` |
-| `record` | `[String: Any]` |
-| `any` | `Any` |
-| Custom classes | `AppNameClassName` |
-
-### Naming Conventions
-
-- Class names: `AppNameClassName`
-- Property names: `camelCase`
-- Enum names: `AppNameEnumName`
-- Enum cases: `camelCase`
 
 ## Requirements
 
-- macOS 12.0+
+- macOS 13.0+
 - Swift 6.1+
 - Xcode command line tools (for XML processing)
 
-## Limitations
+## Dependencies
 
-- Commands are parsed but not fully implemented in generated code
-- Some complex SDEF features may require manual adjustment
-- Generated code assumes use of the Scripting Bridge framework
+- [Swift Argument Parser](https://github.com/apple/swift-argument-parser) (1.2.0+)
+- [SwiftSyntax](https://github.com/apple/swift-syntax) (510.0.0+)
 
-## Contributing
 
-This tool is part of the swift-scripting-bridge project. See the main project README for contribution guidelines.
+## Licence
 
-## License
-
-See the main project license file.
+This project is licensed under the MIT Licence
+(see main project licence file).
