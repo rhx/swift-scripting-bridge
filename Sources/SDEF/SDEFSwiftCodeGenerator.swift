@@ -221,10 +221,17 @@ public final class SDEFSwiftCodeGenerator {
             code += generateNamespacedClassNamesEnum()
         }
 
-        // Generate enumerations inside namespace
+        // Generate enumerations inside namespace - deduplicate by name
+        var generatedEnumNames = Set<String>()
         for suite in model.suites {
             for enumeration in suite.enumerations {
-                code += generateNamespacedEnumeration(enumeration)
+                let enumName = swiftClassName(enumeration.name)
+                if !generatedEnumNames.contains(enumName) {
+                    code += generateNamespacedEnumeration(enumeration)
+                    generatedEnumNames.insert(enumName)
+                } else if verbose {
+                    print("Skipping duplicate enumeration: \(enumName)")
+                }
             }
         }
 
@@ -277,8 +284,12 @@ public final class SDEFSwiftCodeGenerator {
     }
 
     private func generateTypeAliases() -> String {
-        // Don't generate typealias for Application if there's also an Application protocol
-        let hasApplicationClass = model.suites.flatMap { $0.classes }.contains { $0.name.lowercased() == "application" }
+        // Check if the SDEF model defines an Application class
+        let hasApplicationClass = model.suites.contains { suite in
+            suite.classes.contains { sdefClass in
+                sdefClass.name.lowercased() == "application"
+            }
+        }
 
         var aliases = """
 
@@ -311,7 +322,11 @@ public typealias \(baseName)ElementArray = SBElementArray
             code += "/// \(description.capitalizingFirstLetter())\n"
         }
 
-        code += "@objc public enum \(enumName): AEKeyword {\n"
+        code += "@objc public enum \(enumName): AEKeyword, Sendable {\n"
+
+        // Track used raw values and their corresponding case names
+        var usedRawValues: [String: String] = [:]
+        var aliasProperties: [String] = []
 
         for enumerator in enumeration.enumerators {
             if let description = enumerator.description {
@@ -320,7 +335,28 @@ public typealias \(baseName)ElementArray = SBElementArray
 
             let caseName = swiftCaseName(enumerator.name)
             let codeValue = formatEnumeratorCode(enumerator.code)
-            code += "    case \(caseName) = \(codeValue)\n"
+
+            // Check if we've already used this raw value
+            if let existingCaseName = usedRawValues[codeValue] {
+                // Create an alias property instead of a duplicate case
+                if verbose {
+                    print("Creating alias \(caseName) -> \(existingCaseName) for duplicate raw value \(codeValue) in \(enumName)")
+                }
+                aliasProperties.append("    /// Alias for \(existingCaseName)")
+                aliasProperties.append("    public static let \(caseName): \(enumName) = .\(existingCaseName)")
+            } else {
+                // This is a new raw value, create the actual case
+                usedRawValues[codeValue] = caseName
+                code += "    case \(caseName) = \(codeValue)\n"
+            }
+        }
+
+        // Add alias properties after the cases
+        if !aliasProperties.isEmpty {
+            code += "\n    // MARK: - Aliases for duplicate raw values\n"
+            for aliasProperty in aliasProperties {
+                code += "\(aliasProperty)\n"
+            }
         }
 
         code += "}\n"
@@ -680,15 +716,16 @@ public typealias \(baseName)ElementArray = SBElementArray
             code += "        /// \(description.capitalizingFirstLetter())\n"
         }
 
-        // Use cocoa key if available, otherwise use the property name
-        let propertyName = if let cocoaKey = property.cocoaKey {
-            // Cocoa keys are already in proper Swift naming convention (e.g., isShared)
-            // Just escape reserved keywords if needed
-            escapeReservedKeyword(cocoaKey)
+        // Protocol should use the original SDEF property name (Objective-C style)
+        // This provides the canonical property names that match AppleScript/Objective-C conventions
+        let basePropertyName = swiftPropertyName(property.name)
+
+        // For list properties, use "untyped" prefix and SBElementArray
+        let (propertyName, swiftType) = if property.type.isList {
+            ("untyped" + basePropertyName.capitalizingFirstLetter(), "SBElementArray")
         } else {
-            swiftPropertyName(property.name)
+            (basePropertyName, swiftNamespacedType(for: property.type))
         }
-        let swiftType = swiftNamespacedType(for: property.type)
 
         let accessors = switch property.access {
         case "r":
@@ -701,10 +738,9 @@ public typealias \(baseName)ElementArray = SBElementArray
             "{ get set }"
         }
 
-        // Always use the original SDEF property name for @objc attribute for ABI compatibility
-        // Convert to valid Swift identifier (camelCase) if needed
-        let objcName = swiftPropertyName(property.name)
-        code += "        @objc(\(objcName)) optional var \(propertyName): \(swiftType) \(accessors)\n"
+        // Protocol uses the standard property name without @objc renaming
+        // The property name itself matches the Objective-C/AppleScript convention
+        code += "        @objc optional var \(propertyName): \(swiftType) \(accessors)\n"
 
         return code
     }
@@ -755,14 +791,20 @@ public typealias \(baseName)ElementArray = SBElementArray
         }
 
         // Use cocoa key if available, otherwise use the property name
-        let propertyName = if let cocoaKey = property.cocoaKey {
+        let basePropertyName = if let cocoaKey = property.cocoaKey {
             // Cocoa keys are already in proper Swift naming convention (e.g., isShared)
             // Just escape reserved keywords if needed
             escapeReservedKeyword(cocoaKey)
         } else {
             swiftPropertyName(property.name)
         }
-        let swiftType = swiftType(for: property.type)
+
+        // For list properties, use "untyped" prefix and SBElementArray
+        let (propertyName, swiftType) = if property.type.isList {
+            ("untyped" + basePropertyName.capitalizingFirstLetter(), "SBElementArray")
+        } else {
+            (basePropertyName, swiftType(for: property.type))
+        }
 
         let accessors = switch property.access {
         case "r":
@@ -826,7 +868,24 @@ public typealias \(baseName)ElementArray = SBElementArray
         var baseType = swiftTypeName(propertyType.baseType)
 
         if propertyType.isList {
-            baseType = "[\(baseType)]"
+            // Check if the base type is an enum (not representable in Objective-C arrays)
+            let allEnumNames = model.suites.flatMap { $0.enumerations }.map { swiftClassName($0.name) }
+            let isEnumType = allEnumNames.contains(baseType)
+
+            if verbose {
+                print("Checking list property: baseType='\(baseType)', allEnums=\(allEnumNames), isEnum=\(isEnumType)")
+            }
+
+            if isEnumType {
+                // For enum arrays, use SBElementArray for @objc compatibility
+                if verbose {
+                    print("Converting enum array [\(baseType)] to SBElementArray for Objective-C compatibility")
+                }
+                baseType = "SBElementArray"
+            } else {
+                // For protocol/class arrays, use Swift array syntax (Objective-C compatible)
+                baseType = "[\(baseType)]"
+            }
         }
 
         // For @objc optional properties, never make types optional to avoid double optionals
@@ -1146,6 +1205,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         public extension \(protocolName) {
         """
 
+        // Generate strongly typed accessors for element arrays
         for element in sdefClass.elements {
             // Look up the class to get its plural name and generate typed accessor
             // Check both regular classes and standard classes
@@ -1186,6 +1246,56 @@ public typealias \(baseName)ElementArray = SBElementArray
             """
         }
 
+        // Generate strongly typed accessors for list properties
+        for property in sdefClass.properties {
+            guard property.type.isList else { continue }
+
+            let basePropertyName = if let cocoaKey = property.cocoaKey {
+                escapeReservedKeyword(cocoaKey)
+            } else {
+                swiftPropertyName(property.name)
+            }
+
+            // The untyped property name must match the protocol property name (which uses original SDEF name)
+            let protocolPropertyName = swiftPropertyName(property.name)
+            let untypedPropertyName = "untyped" + protocolPropertyName.capitalizingFirstLetter()
+            let baseTypeName = swiftNamespacedTypeName(property.type.baseType)
+
+            // Check if this is an enum type
+            let allEnumNames = model.suites.flatMap { $0.enumerations }.map { swiftClassName($0.name) }
+            let isEnumType = allEnumNames.contains(baseTypeName)
+
+            if isEnumType {
+                // For enum arrays, convert from SBElementArray using raw values
+                let enumTypeName = "\(baseName).\(baseTypeName)"
+                code += """
+
+                    /// Strongly typed accessor for \(property.name)
+                    var \(basePropertyName): [\(enumTypeName)] {
+                        guard let untypedArray = \(untypedPropertyName) as? [AEKeyword] else { return [] }
+                        return untypedArray.compactMap { \(enumTypeName)(rawValue: $0) }
+                    }
+                """
+            } else {
+                // For protocol/class arrays, simple cast should work
+                // Only prefix with namespace for class types, not basic types
+                let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "[String: Any]", "Any", "NSNull", "NSRect", "NSNumber", "NSPoint", "NSSize", "SBObject"]
+                let typeName = if basicTypes.contains(baseTypeName) {
+                    baseTypeName
+                } else {
+                    "\(baseName).\(baseTypeName)"
+                }
+
+                code += """
+
+                    /// Strongly typed accessor for \(property.name)
+                    var \(basePropertyName): [\(typeName)] {
+                        \(untypedPropertyName) as? [\(typeName)] ?? []
+                    }
+                """
+            }
+        }
+
         // Also generate property aliases based on Objective-C names
         code += generatePropertyAliases(sdefClass)
 
@@ -1205,12 +1315,29 @@ public typealias \(baseName)ElementArray = SBElementArray
         for property in sdefClass.properties {
             guard let cocoaKey = property.cocoaKey else { continue }
 
-            // Only generate alias if the Cocoa key is different from the original property name
-            let objcPropertyName = swiftPropertyName(property.name)
-            let swiftPropertyName = escapeReservedKeyword(cocoaKey)
+            // Generate alias from Swift idiomatic name to Objective-C property name
+            // Protocol property uses objcPropertyName, alias provides swiftPropertyName
+            let objcPropertyName = swiftPropertyName(property.name)  // e.g., "passwordProtected"
+            let swiftPropertyName = escapeReservedKeyword(cocoaKey)  // e.g., "isPasswordProtected"
 
             // Skip if they're the same (no alias needed)
             guard objcPropertyName != swiftPropertyName else { continue }
+
+            // Check if the alias name would conflict with existing protocol properties
+            // by looking for properties with the same name across all classes
+            let aliasNameConflicts = model.suites.flatMap { $0.classes }.contains { otherClass in
+                otherClass.properties.contains { otherProperty in
+                    self.swiftPropertyName(otherProperty.name) == swiftPropertyName
+                }
+            }
+
+            // Skip generating the alias if it would conflict with a protocol property
+            if aliasNameConflicts {
+                if verbose {
+                    print("Skipping alias '\(swiftPropertyName)' for '\(objcPropertyName)' in \(sdefClass.name) to avoid protocol property conflict")
+                }
+                continue
+            }
 
             // For property aliases in extensions, we need to use the correct type references
             let baseTypeName = swiftNamespacedTypeName(property.type.baseType)
@@ -1224,20 +1351,64 @@ public typealias \(baseName)ElementArray = SBElementArray
                 swiftType = "\(baseName).\(baseTypeName)"
             }
 
+            // Skip list properties - they already have strongly typed accessors generated elsewhere
+            // that provide the Swift idiomatic names
             if property.type.isList {
-                swiftType = "[\(swiftType)]"
+                continue
+            } else {
+                // Generate getter/setter to match the exact protocol property type
+                // The protocol property defines the expected return type, alias should match exactly
+                let protocolPropertyType = swiftNamespacedType(for: property.type)
+
+                // For non-optional protocol types, provide sensible defaults if underlying property might be nil
+                if !protocolPropertyType.hasSuffix("?") {
+                    let defaultValue = switch swiftType {
+                    case "String":
+                        "\(objcPropertyName) ?? \"\""
+                    case "Int":
+                        "\(objcPropertyName) ?? 0"
+                    case "Double":
+                        "\(objcPropertyName) ?? 0.0"
+                    case "Bool":
+                        "\(objcPropertyName) ?? false"
+                    case "URL":
+                        "\(objcPropertyName) ?? URL(fileURLWithPath: \"\")"
+                    case "Date":
+                        "\(objcPropertyName) ?? Date()"
+                    case "NSNumber":
+                        "\(objcPropertyName) ?? NSNumber(value: 0)"
+                    default:
+                        // For enum and complex types, check if we can provide a reasonable default
+                        if swiftType.contains(".") {
+                            // For complex types, use implicitly unwrapped optional to avoid crashes
+                            // This allows users to check for nil if needed while maintaining type compatibility
+                            objcPropertyName
+                        } else {
+                            "\(objcPropertyName) ?? \(swiftType)()"
+                        }
+                    }
+
+                    // For complex types that could be nil, use implicitly unwrapped optional return type
+                    let returnType = if swiftType.contains(".") && defaultValue == objcPropertyName {
+                        "\(swiftType)!"
+                    } else {
+                        swiftType
+                    }
+
+                    code += """
+
+                        /// Swift idiomatic alias for \(objcPropertyName)
+                        var \(swiftPropertyName): \(returnType) { \(defaultValue) }
+                    """
+                } else {
+                    // Protocol type is optional, alias can be optional too
+                    code += """
+
+                        /// Swift idiomatic alias for \(objcPropertyName)
+                        var \(swiftPropertyName): \(swiftType) { \(objcPropertyName) }
+                    """
+                }
             }
-
-            // Generate getter/setter based on property access
-            // Since protocol properties are optional, make the aliases optional too
-            let optionalSwiftType = swiftType.hasSuffix("?") ? swiftType : "\(swiftType)?"
-
-            // Protocol extensions can't have computed property setters, so make all aliases read-only
-            code += """
-
-                /// Objective-C style alias for \(swiftPropertyName)
-                var \(objcPropertyName): \(optionalSwiftType) { \(swiftPropertyName) }
-            """
         }
 
         return code
@@ -1311,22 +1482,25 @@ public typealias \(baseName)ElementArray = SBElementArray
     }
 
     private func generateNamespacedTypeAliases() -> String {
-        // Don't generate typealias for Application if there's also an Application protocol
-        let hasApplicationClass = model.suites.flatMap { $0.classes }.contains { $0.name.lowercased() == "application" }
-
         var aliases = """
 
             // MARK: - Type Aliases
 
         """
 
-        if !hasApplicationClass {
-            aliases += "    public typealias Application = SBApplication\n"
-        }
+        // Don't generate Application typealias when application protocol exists
+        // The application protocol is generated from CocoaStandard.sdef for most applications
+        // Creating both a typealias and protocol with the same name causes naming conflicts
 
         aliases += """
             public typealias Object = SBObject
             public typealias ElementArray = SBElementArray
+
+            // MARK: - Common Value Types
+            /// Represents an RGB color value
+            public typealias RGBColor = NSColor
+            /// Represents a TIFF picture
+            public typealias TIFFPicture = NSImage
 
         """
         return aliases
@@ -1385,7 +1559,11 @@ public typealias \(baseName)ElementArray = SBElementArray
             code += "    /// \(description.capitalizingFirstLetter())\n"
         }
 
-        code += "    @objc public enum \(enumName): AEKeyword {\n"
+        code += "    @objc public enum \(enumName): AEKeyword, Sendable {\n"
+
+        // Track used raw values and their corresponding case names
+        var usedRawValues: [String: String] = [:]
+        var aliasProperties: [String] = []
 
         for enumerator in enumeration.enumerators {
             if let description = enumerator.description {
@@ -1394,7 +1572,28 @@ public typealias \(baseName)ElementArray = SBElementArray
 
             let caseName = swiftCaseName(enumerator.name)
             let codeValue = formatEnumeratorCode(enumerator.code)
-            code += "        case \(caseName) = \(codeValue)\n"
+
+            // Check if we've already used this raw value
+            if let existingCaseName = usedRawValues[codeValue] {
+                // Create an alias property instead of a duplicate case
+                if verbose {
+                    print("Creating alias \(caseName) -> \(existingCaseName) for duplicate raw value \(codeValue) in \(enumName)")
+                }
+                aliasProperties.append("        /// Alias for \(existingCaseName)")
+                aliasProperties.append("        public static let \(caseName): \(enumName) = .\(existingCaseName)")
+            } else {
+                // This is a new raw value, create the actual case
+                usedRawValues[codeValue] = caseName
+                code += "        case \(caseName) = \(codeValue)\n"
+            }
+        }
+
+        // Add alias properties after the cases
+        if !aliasProperties.isEmpty {
+            code += "\n        // MARK: - Aliases for duplicate raw values\n"
+            for aliasProperty in aliasProperties {
+                code += "\(aliasProperty)\n"
+            }
         }
 
         code += "    }\n"
@@ -1409,8 +1608,12 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         """
 
-        // Type aliases for common types
-        let hasApplicationClass = model.suites.flatMap { $0.classes }.contains { $0.name.lowercased() == "application" }
+        // Check if the SDEF model defines an Application class
+        let hasApplicationClass = model.suites.contains { suite in
+            suite.classes.contains { sdefClass in
+                sdefClass.name.lowercased() == "application"
+            }
+        }
 
         if !hasApplicationClass {
             code += "public typealias \(baseName)Application = \(baseName).Application\n"
@@ -1461,8 +1664,12 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         """
 
-        // Type aliases for common types
-        let hasApplicationClass = model.suites.flatMap { $0.classes }.contains { $0.name.lowercased() == "application" }
+        // Check if the SDEF model defines an Application class
+        let hasApplicationClass = model.suites.contains { suite in
+            suite.classes.contains { sdefClass in
+                sdefClass.name.lowercased() == "application"
+            }
+        }
 
         if !hasApplicationClass {
             code += "public typealias Application = \(baseName).Application\n"
