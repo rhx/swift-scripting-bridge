@@ -1,0 +1,12 @@
+#!/usr/bin/env swift sh
+import ScriptingBridge
+import NotesScripting // rhx/swift-scripting-bridge ~> main
+
+let app: Notes.Application? = SBApplication(bundleIdentifier: "com.apple.Notes")
+guard let app else { fatalError("Could not access Notes") }
+print("Got \(app.notes.count) notes")
+guard let firstNote = app.notes.first else { exit(EXIT_FAILURE)  }
+print("First note: " + (firstNote.name ?? "<unnamed>"), terminator: "")
+if let isShared = firstNote.isShared {
+    print(isShared ? " is shared" : " is not shared")
+}

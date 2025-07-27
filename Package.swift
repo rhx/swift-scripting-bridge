@@ -15,6 +15,9 @@ let package = Package(
         .library(
             name: "SDEF",
             targets: ["SDEF"]),
+        .library(
+            name: "NotesScripting",
+            targets: ["NotesScripting"]),
         .executable(
             name: "sdef2swift",
             targets: ["sdef2swift"]),
@@ -41,6 +44,7 @@ let package = Package(
                 "SDEF",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]),
+        .target(name: "NotesScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .testTarget(
             name: "SwiftScriptingBridgeTests",
             dependencies: ["SwiftScriptingBridge"]),
