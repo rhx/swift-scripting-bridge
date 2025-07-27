@@ -283,32 +283,29 @@ When you run `swift build`, the plugin will:
 
 ### Example Usage
 
-After setting up the plugin, you can immediately use the generated interfaces:
+After setting up the plugin, you can immediately use the generated interfaces,
+e.g. in your main.swift:
 
 ```swift
 import Foundation
 import ScriptingBridge
-import SwiftScriptingBridge
 
-@main
-struct MyApp {
-    static func main() {
-        // Use Notes interface (generated from empty Notes.sdefstub)
-        if let notes: Notes.Application = SBApplication(bundleIdentifier: "com.apple.Notes") {
-            print("Notes has \(notes.notes.count) notes")
-            
-            if let firstNote = notes.notes.first {
-                // Both naming conventions available
-                print("Swift style - isShared: \(firstNote.isShared ?? false)")
-                print("Objective-C style - shared: \(firstNote.shared ?? false)")
-            }
-        }
-        
-        // Use Safari interface (generated from Safari.sdef) 
-        if let safari: Safari.Application = SBApplication(bundleIdentifier: "com.apple.Safari") {
-            print("Safari has \(safari.documents.count) documents")
-        }
-    }
+let app: Notes.Application? = SBApplication(bundleIdentifier: "com.apple.Notes")
+guard let app else { fatalError("Could not access Notes") }
+print("Got \(app.notes.count) notes")
+guard let firstNote = app.notes.first else { exit(EXIT_FAILURE)  }
+print("First note: " + (firstNote.name ?? "<unnamed>"))
+if let isShared = firstNote.isShared {
+    print(isShared ? " is shared" : " is not shared")
+}
+if let body = firstNote.body {
+    print(body)
+}
+if !(app.isActive ?? false) {
+    app.activate()
+}
+app.windows.forEach { window in
+    window.closeSaving?(.no, savingIn: nil)
 }
 ```
 
