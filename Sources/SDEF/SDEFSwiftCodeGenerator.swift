@@ -89,11 +89,98 @@ public final class SDEFSwiftCodeGenerator {
 
         /// Protocol for ScriptingBridge Applications.
         ///
-        /// This protocol defines the basic functionality for ScriptingBridge applications.
+        /// This protocol defines the basic functionality for ScriptingBridge applications,
+        /// including standard Apple Event commands that most applications support.
         @objc public protocol \(baseName)SBApplicationProtocol: \(baseName)SBObjectProtocol {
+            // MARK: - Core Application Methods
+
+            /// Activate the application, bringing it to the foreground.
             func activate()
+
+            /// The application's delegate for handling Scripting Bridge events.
             var delegate: SBApplicationDelegate! { get set }
+
+            /// Whether the application is currently running.
             var isRunning: Bool { get }
+
+            // MARK: - Standard Suite Commands
+
+            /// Open the specified object(s).
+            /// - Parameters:
+            ///   - objects: List of objects to open
+            ///   - using: The application file to open the object with (optional)
+            ///   - withProperties: Initial values for properties (optional)
+            @objc optional func open(_ objects: Any!, using: Any?, withProperties: [String: Any]?)
+
+            /// Print the specified object(s).
+            /// - Parameters:
+            ///   - objects: List of objects to print
+            ///   - withProperties: Optional properties for the print command
+            @objc optional func print(_ objects: Any!, withProperties: [String: Any]?)
+
+            /// Quit the application.
+            @objc optional func quit()
+
+            /// Close the specified object.
+            /// - Parameter object: The object to close
+            @objc optional func close(_ object: Any!)
+
+            /// Return the number of elements of a particular class within an object.
+            /// - Parameters:
+            ///   - object: The object whose elements are to be counted
+            ///   - each: The class of elements to count
+            /// - Returns: The number of elements
+            @objc optional func count(_ object: Any!, each: Any!) -> Int
+
+            /// Return the size in bytes of an object.
+            /// - Parameters:
+            ///   - object: The object whose data size is to be returned
+            ///   - as: The data type for which the size is calculated (optional)
+            /// - Returns: The size of the object in bytes
+            @objc optional func dataSize(_ object: Any!, as: Any?) -> Int
+
+            /// Move an item from its container to the trash.
+            /// - Parameter object: The item to delete
+            /// - Returns: The item that was just deleted
+            @objc optional func delete(_ object: Any!) -> Any!
+
+            /// Duplicate one or more object(s).
+            /// - Parameters:
+            ///   - objects: The object(s) to duplicate
+            ///   - to: The new location for the object(s) (optional)
+            ///   - replacing: Whether to replace items with the same name (optional)
+            ///   - routingSuppressed: Whether to suppress autorouting (optional)
+            ///   - exactCopy: Whether to copy permissions/ownership as is (optional)
+            /// - Returns: The duplicated object(s)
+            @objc optional func duplicate(_ objects: Any!, to: Any?, replacing: Bool, routingSuppressed: Bool, exactCopy: Bool) -> Any!
+
+            /// Verify if an object exists.
+            /// - Parameter object: The object in question
+            /// - Returns: True if it exists, false if not
+            @objc optional func exists(_ object: Any!) -> Bool
+
+            /// Make a new element.
+            /// - Parameters:
+            ///   - new: The class of the new element
+            ///   - at: The location at which to insert the element
+            ///   - to: When creating an alias, the original item (optional)
+            ///   - withProperties: Initial values for properties (optional)
+            /// - Returns: The new object(s)
+            @objc optional func make(new: Any!, at: Any!, to: Any?, withProperties: [String: Any]?) -> Any!
+
+            /// Move object(s) to a new location.
+            /// - Parameters:
+            ///   - objects: The object(s) to move
+            ///   - to: The new location for the object(s)
+            ///   - replacing: Whether to replace items with the same name (optional)
+            ///   - positionedAt: List of positions for destination items (optional)
+            ///   - routingSuppressed: Whether to suppress autorouting (optional)
+            /// - Returns: The object(s) after they have been moved
+            @objc optional func move(_ objects: Any!, to: Any!, replacing: Bool, positionedAt: [Any]?, routingSuppressed: Bool) -> Any!
+
+            /// Select the specified object(s).
+            /// - Parameter object: The object to select
+            @objc optional func select(_ object: Any!)
         }
         extension SBApplication: \(baseName)SBApplicationProtocol {}
 
