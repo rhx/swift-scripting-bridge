@@ -40,12 +40,12 @@ for i in 0..<maxPlaylistsToShow {
     let trackCount = playlist.tracks.count
     let name = playlist.name ?? "Unnamed Playlist"
     let duration = playlist.duration ?? 0
-    
+
     let minutes = Int(duration) / 60
     let seconds = Int(duration) % 60
-    
+
     print("   • \(name) (\(trackCount) tracks, \(minutes):\(String(format: "%02d", seconds)))")
-    
+
     // Show a few tracks from the playlist
     if trackCount > 0 {
         let maxTracksToShow = min(3, trackCount)

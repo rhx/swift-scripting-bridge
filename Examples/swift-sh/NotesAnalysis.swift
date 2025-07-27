@@ -34,12 +34,12 @@ for i in 0..<maxToShow {
     let title = note.name ?? "Untitled Note"
     let body = note.body ?? ""
     let preview = String(body.prefix(80)).replacingOccurrences(of: "\n", with: " ")
-    
+
     print("   \(i+1). \(title)")
     if !preview.isEmpty {
         print("      \(preview)...")
     }
-    
+
     // Show creation date if available
     if let creationDate = note.creationDate {
         let formatter = DateFormatter()
@@ -47,7 +47,7 @@ for i in 0..<maxToShow {
         formatter.timeStyle = .short
         print("      Created: \(formatter.string(from: creationDate))")
     }
-    
+
     // Show additional properties
     if let isShared = note.isShared, isShared {
         print("      🔗 Shared")

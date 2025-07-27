@@ -48,7 +48,7 @@ for i in 0..<maxNotesToShow {
     let title = note.name ?? "Untitled Note"
     let bodyPreview = note.body?.prefix(50) ?? ""
     let cleanPreview = String(bodyPreview).replacingOccurrences(of: "\n", with: " ")
-    
+
     // Show creation and modification dates if available
     var dateInfo = ""
     if let creationDate = note.creationDate {
@@ -56,17 +56,17 @@ for i in 0..<maxNotesToShow {
         formatter.dateStyle = .short
         dateInfo = " (created \(formatter.string(from: creationDate)))"
     }
-    
+
     print("   • \(title)\(dateInfo)")
     if !cleanPreview.isEmpty {
         print("     \(cleanPreview)...")
     }
-    
+
     // Show if note is shared
     if let isShared = note.isShared, isShared {
         print("     🔗 Shared")
     }
-    
+
     // Show if note is password protected
     if let isPasswordProtected = note.isPasswordProtected, isPasswordProtected {
         print("     🔒 Password Protected")
