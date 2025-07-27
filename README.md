@@ -3,7 +3,11 @@
 A native Swift library and toolset for controlling scriptable macOS applications through the Scripting Bridge framework. The main tool, `sdef2swift`, generates type-safe Swift code directly from Apple Scripting Definition (`.sdef`) files.
 
 
-# sdef2swift
+There is also a build plugin for the
+[Swift Package Manager (SPM)](https://www.swift.org/documentation/package-manager/)
+that will convert `.sdef` files to Swift automatically.
+
+## sdef2swift
 
 A command-line tool that generates Swift Scripting Bridge code directly from Apple Scripting Definition (.sdef) files.  This tool was inspired by projects such as
 [SwiftScripting](https://github.com/tingraldi/SwiftScripting) and
@@ -12,7 +16,7 @@ but unlike these projects, it uses pure Swift and does not require Python and ll
 to convert Objective-C back to Swift.
 Instead, it creates Swift code directly from an `SDEF` XML file.
 
-## Overview
+### Overview
 
 `sdef2swift` is similar to Apple's `sdp -f h` command,
 but instead of generating Objective-C headers,
@@ -20,7 +24,7 @@ it produces Swift code that provides type-safe interfaces
 for controlling scriptable macOS applications using the
 Scripting Bridge framework.
 
-## Features
+### Features
 
 - **Direct .sdef Processing**: Works directly with .sdef files without requiring intermediate Objective-C header generation
 - **Type-Safe Swift Code**: Generates Swift protocols and enums with proper type safety
@@ -31,7 +35,7 @@ Scripting Bridge framework.
 - **Strongly Typed Extensions**: Generates typed accessor extensions for element arrays
 - **Class Names Enumeration**: Optional generation of scripting class names enum
 
-## Installation
+### Installation
 
 Build the tool using Swift Package Manager:
 
@@ -41,15 +45,15 @@ swift build -c release
 
 The executable will be available at `.build/release/sdef2swift`.
 
-## Usage
+### Usage
 
-### Basic Usage
+#### Basic Usage
 
 ```bash
 sdef2swift /path/to/application.sdef
 ```
 
-### Advanced Options
+#### Advanced Options
 
 ```bash
 sdef2swift [OPTIONS] <sdef-path>
@@ -73,9 +77,9 @@ OPTIONS:
   -h, --help             Show help information
 ```
 
-### Examples
+#### Examples
 
-#### Simple Usage (with search paths)
+##### Simple Usage (with search paths)
 
 Find and generate Swift code for Finder (searches standard macOS directories automatically):
 ```bash
@@ -87,7 +91,7 @@ Find Safari without specifying full path or .sdef extension:
 sdef2swift Safari --output-directory ./Generated
 ```
 
-#### Traditional Usage (full paths)
+##### Usage with full paths
 
 Generate Swift code for Safari using full path:
 ```bash
@@ -99,7 +103,7 @@ Generate with custom output directory and base name:
 sdef2swift Safari.sdef --output-directory ./Generated --basename SafariScripting
 ```
 
-#### Search Path Examples
+##### Search Path Examples
 
 Use custom search paths (colon-separated):
 ```bash
@@ -116,7 +120,7 @@ Find apps in custom locations with verbose output:
 sdef2swift --search-path /MyApps:/Applications MyApp --verbose
 ```
 
-#### Manual .sdef extraction
+##### Manual .sdef extraction
 
 Extract .sdef from an application first, then generate Swift code:
 ```bash
@@ -124,11 +128,11 @@ sdef /System/Applications/Mail.app > Mail.sdef
 sdef2swift Mail.sdef --verbose
 ```
 
-## Search Path Feature
+### Search Path Feature
 
 The `--search-path` option allows you to find `.sdef` files without specifying full paths. This feature automatically searches:
 
-### Default Search Paths
+#### Default Search Paths
 
 When no `--search-path` option is specified, sdef2swift searches these standard macOS directories:
 - `.` (current directory)
@@ -139,7 +143,7 @@ When no `--search-path` option is specified, sdef2swift searches these standard 
 - `/System/Library/CoreServices`
 - `/Library/CoreServices`
 
-### Application Bundle Support
+#### Application Bundle Support
 
 sdef2swift automatically searches inside application bundles at `Contents/Resources/` for `.sdef` files, so you can simply use:
 
@@ -148,7 +152,7 @@ sdef2swift Finder    # Finds /System/Library/CoreServices/Finder.app/Contents/Re
 sdef2swift Safari    # Finds /Applications/Safari.app/Contents/Resources/Safari.sdef
 ```
 
-### Extension Optional
+#### Extension Optional
 
 You can omit the `.sdef` extension - the tool will search for both `AppName.sdef` and `AppName`:
 
@@ -157,7 +161,7 @@ sdef2swift Finder      # Searches for both "Finder.sdef" and "Finder"
 sdef2swift Finder.sdef # Searches for both "Finder.sdef" and "Finder"
 ```
 
-### Custom Search Paths
+#### Custom Search Paths
 
 Specify custom directories to search:
 
@@ -169,7 +173,7 @@ sdef2swift --search-path /MyApps:/Custom/Location AppName
 sdef2swift --search-path /MyApps --search-path /Another/Path AppName
 ```
 
-## Generated Code Structure
+### Generated Code Structure
 
 The generated Swift code uses a namespace-based approach where all types are contained within an enum that acts as a namespace. This provides better organization and avoids naming conflicts.
 
@@ -197,9 +201,132 @@ public enum Safari {
 }
 ```
 
+## SPM Build Plugin
+
+Swift Scripting Bridge includes a Swift Package Manager build plugin that automatically generates Swift interfaces from `.sdef` files during the build process. This eliminates the need to manually run `sdef2swift` and keeps your generated code up-to-date.
+
+### Setup
+
+Add the dependency and plugin to your `Package.swift`:
+
+```swift
+// swift-tools-version: 6.1
+
+import PackageDescription
+
+let package = Package(
+    name: "MyApp",
+    platforms: [.macOS(.v13)],
+    dependencies: [
+        .package(url: "https://github.com/rhx/swift-scripting-bridge", branch: "main")
+    ],
+    targets: [
+        .executableTarget(
+            name: "MyApp",
+            dependencies: [
+                .product(name: "SwiftScriptingBridge", package: "swift-scripting-bridge")
+            ],
+            plugins: [
+                .plugin(name: "GenerateScriptingInterface", package: "swift-scripting-bridge")
+            ]
+        )
+    ]
+)
+```
+
+### Creating SDEF Files
+
+The plugin automatically processes any `.sdef` and `.sdefstub` files in your target's `Sources` directory. You have three options:
+
+#### 1. SDEF Stub Files (Recommended)
+
+Create `.sdefstub` files with the application name:
+
+```bash
+# Create stub files - plugin will find the real .sdef using search paths
+touch Sources/MyApp/Notes.sdefstub
+touch Sources/MyApp/Safari.sdefstub
+```
+
+The plugin will automatically locate the actual `.sdef` files using the same search logic as the command-line tool. The `.sdefstub` extension makes it clear these are placeholder files that trigger automatic discovery.
+
+#### 2. Symlinked SDEF Files
+
+Create symlinks pointing to the actual `.sdef` files in application bundles:
+
+```bash
+cd Sources/MyApp
+ln -sf /Applications/Safari.app/Contents/Resources/Safari.sdef Safari.sdef
+ln -sf /System/Applications/Notes.app/Contents/Resources/Notes.sdef Notes.sdef
+```
+
+#### 3. Full SDEF Content
+
+Copy or extract the full `.sdef` content into your project:
+
+```bash
+sdef /Applications/Safari.app > Sources/MyApp/Safari.sdef
+```
+
+### Build Process
+
+When you run `swift build`, the plugin will:
+
+1. Scan your target for `.sdef` and `.sdefstub` files
+2. For each file:
+   - If `.sdefstub`: Use search paths to find the real `.sdef` file
+   - If empty `.sdef`: Use search paths to find the real `.sdef` file  
+   - If symlink: Follow the symlink to the target file
+   - If regular file: Use the file content directly
+3. Generate corresponding Swift interfaces (e.g., `Notes.sdefstub` → `Notes.swift`)
+4. Include the generated Swift files in your target compilation
+
+### Example Usage
+
+After setting up the plugin, you can immediately use the generated interfaces:
+
+```swift
+import Foundation
+import ScriptingBridge
+import SwiftScriptingBridge
+
+@main
+struct MyApp {
+    static func main() {
+        // Use Notes interface (generated from empty Notes.sdefstub)
+        if let notes: Notes.Application = SBApplication(bundleIdentifier: "com.apple.Notes") {
+            print("Notes has \(notes.notes.count) notes")
+            
+            if let firstNote = notes.notes.first {
+                // Both naming conventions available
+                print("Swift style - isShared: \(firstNote.isShared ?? false)")
+                print("Objective-C style - shared: \(firstNote.shared ?? false)")
+            }
+        }
+        
+        // Use Safari interface (generated from Safari.sdef) 
+        if let safari: Safari.Application = SBApplication(bundleIdentifier: "com.apple.Safari") {
+            print("Safari has \(safari.documents.count) documents")
+        }
+    }
+}
+```
+
+### Generated Files Location
+
+Generated Swift files are placed in the build directory and automatically included in compilation. You don't need to manage them manually - they're regenerated whenever the source `.sdef` files change.
+
+### Plugin Advantages
+
+- **Automatic Updates**: Generated code stays in sync with your `.sdef` files
+- **Build Integration**: No manual steps required - just build your package
+- **Search Path Support**: Works with empty `.sdefstub` files that trigger automatic `.sdef` discovery
+- **Symlink Support**: Handle `.sdef` files in application bundles without copying
+- **Clean Builds**: Generated files are properly tracked as build artifacts
+
 ## Using Generated Code
 
-Once you have generated Swift code, you can use it in your projects, e.g.:
+Once you have generated Swift code, you can use it in your projects. The generated interfaces support both Swift-style and Objective-C style property names for maximum flexibility:
 
 ```swift
 import ScriptingBridge
@@ -212,12 +339,23 @@ struct NotesMain {
         print("Got \(app.notes.count) notes")
         guard let firstNote = app.notes.first else { return }
         print("First note: " + (firstNote.name ?? "<unnamed>"))
+        
+        // Swift-style property names (from Cocoa keys)
         if let isShared = firstNote.isShared {
-            print(isShared  ? " is shared" : " is not shared")
+            print("Swift style - isShared: \(isShared)")
+        }
+        if let body = firstNote.scriptingBody {
+            print("Swift style - scriptingBody: \(body.prefix(50))...")
+        }
+        
+        // Objective-C style property names (from SDEF names) 
+        if let shared = firstNote.shared {
+            print("Objective-C style - shared: \(shared)")
         }
         if let body = firstNote.body {
-            print(body)
+            print("Objective-C style - body: \(body.prefix(50))...")
         }
+        
         if !(app.isActive ?? false) {
             app.activate()
         }
@@ -226,6 +364,15 @@ struct NotesMain {
         }
     }
 }```
+
+### Dual Naming Convention Support
+
+The generated code provides property aliases so you can choose the naming style that fits your preference:
+
+- **Swift-style names** (derived from Cocoa keys): `scriptingBody`, `isShared`, `scriptingDefaultFolder`
+- **Objective-C style names** (derived from SDEF property names): `body`, `shared`, `defaultFolder`
+
+Both naming conventions access the same underlying properties with proper `@objc` attribute mapping for ABI compatibility.
 
 ## Requirements
 
