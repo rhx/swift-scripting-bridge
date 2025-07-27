@@ -35,13 +35,19 @@ struct GenerateScriptingInterface: BuildToolPlugin {
             let outputDir = context.pluginWorkDirectoryURL
 
             // Extract base name from the .sdef/.sdefstub file name
-            var baseName = sdefFile.url.deletingPathExtension().lastPathComponent
+            let fullName = sdefFile.url.deletingPathExtension().lastPathComponent
+            var baseName: String
+            let bundleIdentifier: Optional<String>
 
             // Handle inverse-DNS naming scheme (e.g., com.apple.Music -> Music, org.mozilla.Firefox -> Firefox)
             // If the name contains dots and starts with a lowercase component, extract the last component
-            let components = baseName.split(separator: ".")
+            let components = fullName.split(separator: ".")
             if components.count > 1, let firstChar = components.first?.first, firstChar.isLowercase {
+                bundleIdentifier = fullName  // Save the full name as bundle identifier
                 baseName = String(components.last!)
+            } else {
+                bundleIdentifier = nil
+                baseName = fullName
             }
 
             let outputFile = outputDir.appendingPathComponent("\(baseName).swift")
@@ -87,6 +93,23 @@ struct GenerateScriptingInterface: BuildToolPlugin {
             // Add base name
             arguments.append("--basename")
             arguments.append(baseName)
+
+            // Add bundle identifier if available
+            if let bundleIdentifier = bundleIdentifier {
+                arguments.append("--bundle")
+                arguments.append(bundleIdentifier)
+            }
+
+            // Add search paths including the package directory and system paths
+            let searchPaths = [
+                context.package.directoryURL.path,
+                "/Applications",
+                "/System/Applications",
+                "/System/Library/CoreServices"
+            ].joined(separator: ":")
+
+            arguments.append("--search-path")
+            arguments.append(searchPaths)
 
             let command = Command.buildCommand(
                 displayName: "Generate Swift interface for \(baseName)",

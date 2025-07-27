@@ -109,7 +109,10 @@ struct SDEFToSwift: AsyncParsableCommand {
     /// - Throws: `ValidationError` for invalid input parameters, `RuntimeError` for processing failures
     func run() async throws {
         // Resolve the SDEF file path using search paths
-        let sdefURL = try resolveSDEFPath(sdefPath)
+        let (sdefURL, extractedBundleId) = try resolveSDEFPath(sdefPath)
+
+        // Use extracted bundle ID if no bundle was explicitly provided
+        let finalBundle = bundle ?? extractedBundleId
 
         if verbose {
             print("Resolved SDEF file: \(sdefURL.path)")
@@ -140,7 +143,7 @@ struct SDEFToSwift: AsyncParsableCommand {
         }
 
         do {
-            let generator = SDEFSwiftGenerator(sdefURL: sdefURL, basename: finalBasename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: generateStronglyTypedExtensions, shouldGenerateRecursively: recursive, generatePrefixedTypealiases: prefixed, generateFlatTypealiases: flat, bundleIdentifier: bundle, verbose: verbose)
+            let generator = SDEFSwiftGenerator(sdefURL: sdefURL, basename: finalBasename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: generateStronglyTypedExtensions, shouldGenerateRecursively: recursive, generatePrefixedTypealiases: prefixed, generateFlatTypealiases: flat, bundleIdentifier: finalBundle, verbose: verbose)
             let outputURL = try await generator.generate()
             print("Generated Swift file: \(outputURL.path)")
 
@@ -164,7 +167,7 @@ struct SDEFToSwift: AsyncParsableCommand {
     /// - Parameter path: The input path or filename to resolve
     /// - Returns: A URL pointing to the resolved SDEF file
     /// - Throws: `ValidationError` if the file cannot be found
-    func resolveSDEFPath(_ path: String) throws -> URL {
+    func resolveSDEFPath(_ path: String) throws -> (url: URL, extractedBundleId: String?) {
         // If it's an absolute path or contains path separators and exists, use it directly
         if path.hasPrefix("/") || path.contains("/") {
             let url = URL(fileURLWithPath: path)
@@ -172,7 +175,7 @@ struct SDEFToSwift: AsyncParsableCommand {
                 guard url.pathExtension.lowercased() == "sdef" else {
                     throw SDEFSwiftGenerator.ValidationError("Input file must have .sdef extension")
                 }
-                return url
+                return (url, nil)
             }
         }
 
@@ -181,7 +184,14 @@ struct SDEFToSwift: AsyncParsableCommand {
 
         // Extract base name (with or without .sdef extension)
         let baseName = path.hasSuffix(".sdef") ? String(path.dropLast(5)) : path
-        let candidateNames = ["\(baseName).sdef", baseName]
+        var candidateNames = ["\(baseName).sdef", baseName]
+
+        // If the baseName looks like a bundle ID (contains dots), also try just the app name
+        if baseName.contains(".") {
+            let appName = DefaultSearchPaths.extractBasename(from: baseName)
+            candidateNames.append("\(appName).sdef")
+            candidateNames.append(appName)
+        }
 
         if verbose {
             print("Searching for: \(candidateNames)")
@@ -194,7 +204,7 @@ struct SDEFToSwift: AsyncParsableCommand {
                 // Direct file in search path
                 let directPath = "\(searchPath)/\(candidateName)"
                 if FileManager.default.fileExists(atPath: directPath) && directPath.hasSuffix(".sdef") {
-                    return URL(fileURLWithPath: directPath)
+                    return (URL(fileURLWithPath: directPath), nil)
                 }
 
                 // Search in .app bundles for .sdef files
@@ -204,14 +214,200 @@ struct SDEFToSwift: AsyncParsableCommand {
                         let resourcesPath = "\(searchPath)/\(app)/Contents/Resources"
                         let sdefInApp = "\(resourcesPath)/\(candidateName)"
                         if FileManager.default.fileExists(atPath: sdefInApp) && sdefInApp.hasSuffix(".sdef") {
-                            return URL(fileURLWithPath: sdefInApp)
+                            // If we found an .sdef in an app bundle and no bundle identifier was provided,
+                            // try to extract the bundle identifier from the app for later use
+                            if bundle == nil && !baseName.contains(".") {
+                                let appPath = "\(searchPath)/\(app)"
+                                let plistPath = "\(appPath)/Contents/Info.plist"
+
+                                if FileManager.default.fileExists(atPath: plistPath),
+                                   let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
+                                   let plist = try? PropertyListSerialization.propertyList(from: plistData, format: nil) as? [String: Any],
+                                   let extractedBundleId = plist["CFBundleIdentifier"] as? String {
+
+                                    if verbose {
+                                        print("Found .sdef in app bundle, extracted bundle ID: \(extractedBundleId)")
+                                    }
+
+                                    // Return the extracted bundle identifier
+                                    return (URL(fileURLWithPath: sdefInApp), extractedBundleId)
+                                }
+                            }
+
+                            return (URL(fileURLWithPath: sdefInApp), nil)
                         }
                     }
                 }
             }
         }
 
-        throw SDEFSwiftGenerator.ValidationError("SDEF file not found: \(path)")
+        // If we couldn't find an .sdef file, try to find an application and extract its .sdef
+        if verbose {
+            print("Could not find .sdef file, attempting to extract from application")
+        }
+
+        // Try to find an application with a matching name or bundle ID
+        var candidateBundleIds: [String] = []
+
+        if baseName.contains(".") {
+            // Already looks like a bundle ID
+            candidateBundleIds.append(baseName)
+        } else {
+            // Try common bundle ID patterns
+            candidateBundleIds.append("com.apple.\(baseName)")
+
+            // Some apps have different names (e.g., Contacts -> AddressBook)
+            let alternativeNames = ["Contacts": "AddressBook"]
+            if let altName = alternativeNames[baseName] {
+                candidateBundleIds.append("com.apple.\(altName)")
+            }
+        }
+
+        for bundleId in candidateBundleIds {
+            if let appSdef = try extractSDEFFromApplication(bundleIdentifier: bundleId, searchPaths: searchPaths) {
+                return (appSdef, bundleId)
+            }
+        }
+
+        // Provide helpful error message with suggestions
+        var errorMessage = "SDEF file not found and could not extract from application: \(path)\n\n"
+        errorMessage += "Suggestions:\n"
+        errorMessage += "1. Use bundle identifier naming (e.g., com.apple.TextEdit.sdefstub instead of TextEdit.sdefstub)\n"
+        errorMessage += "2. Extract the .sdef manually: sdef /System/Applications/TextEdit.app > TextEdit.sdef\n"
+        errorMessage += "3. Create a real .sdef file instead of using .sdefstub\n"
+
+        throw SDEFSwiftGenerator.ValidationError(errorMessage)
+    }
+
+    /// Extracts SDEF from an application using /usr/bin/sdef
+    /// - Parameters:
+    ///   - bundleIdentifier: The bundle identifier to search for
+    ///   - searchPaths: The paths to search for the application
+    /// - Returns: URL to a temporary file containing the extracted SDEF, or nil if extraction failed
+    func extractSDEFFromApplication(bundleIdentifier: String, searchPaths: [String]) throws -> URL? {
+        // First try to find the application by bundle ID
+        var appPath = DefaultSearchPaths.findApplication(bundleIdentifier: bundleIdentifier)
+
+        // If not found by bundle ID, try by name
+        if appPath == nil {
+            let appName = DefaultSearchPaths.extractBasename(from: bundleIdentifier)
+            for searchPath in searchPaths {
+                let candidatePath = "\(searchPath)/\(appName).app"
+                if FileManager.default.fileExists(atPath: candidatePath) {
+                    appPath = candidatePath
+                    break
+                }
+            }
+        }
+
+        // If still not found and bundleIdentifier doesn't contain dots, try searching more broadly
+        // and extract the actual bundle identifier from the app
+        if appPath == nil && !bundleIdentifier.contains(".") {
+            // Try to find any app with this name in search paths
+            for searchPath in searchPaths {
+                if let contents = try? FileManager.default.contentsOfDirectory(atPath: searchPath) {
+                    for item in contents where item.hasSuffix(".app") {
+                        let appBaseName = String(item.dropLast(4)) // Remove .app
+                        if appBaseName.lowercased() == bundleIdentifier.lowercased() {
+                            let candidatePath = "\(searchPath)/\(item)"
+                            let plistPath = "\(candidatePath)/Contents/Info.plist"
+
+                            // Try to extract the real bundle ID from the app
+                            if FileManager.default.fileExists(atPath: plistPath),
+                               let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
+                               let plist = try? PropertyListSerialization.propertyList(from: plistData, format: nil) as? [String: Any],
+                               let realBundleId = plist["CFBundleIdentifier"] as? String {
+
+                                if verbose {
+                                    print("Found app \(item) with bundle ID: \(realBundleId)")
+                                }
+
+                                // Update the temp file name to use the real bundle ID
+                                let tempDir = FileManager.default.temporaryDirectory
+                                let tempFile = tempDir.appendingPathComponent("\(realBundleId).sdef")
+
+                                // Run sdef with the found app path
+                                return try runSDEFExtraction(appPath: candidatePath, outputFile: tempFile)
+                            } else {
+                                appPath = candidatePath
+                                break
+                            }
+                        }
+                    }
+                    if appPath != nil { break }
+                }
+            }
+        }
+
+        guard let appPath = appPath else {
+            if verbose {
+                print("Could not find application for bundle ID: \(bundleIdentifier)")
+                print("Searched in paths: \(searchPaths)")
+            }
+            return nil
+        }
+
+        // Use the normal extraction path for standard bundle IDs
+        let tempDir = FileManager.default.temporaryDirectory
+        let tempFile = tempDir.appendingPathComponent("\(bundleIdentifier).sdef")
+
+        return try runSDEFExtraction(appPath: appPath, outputFile: tempFile)
+    }
+
+    /// Runs /usr/bin/sdef to extract SDEF from an application
+    /// - Parameters:
+    ///   - appPath: Path to the application
+    ///   - outputFile: URL where to write the extracted SDEF
+    /// - Returns: URL to the extracted SDEF file, or nil if extraction failed
+    private func runSDEFExtraction(appPath: String, outputFile: URL) throws -> URL? {
+        if verbose {
+            print("Found application at: \(appPath)")
+            print("Extracting SDEF using /usr/bin/sdef...")
+        }
+
+        // Run /usr/bin/sdef to extract the SDEF
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/sdef")
+        process.arguments = [appPath]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            guard process.terminationStatus == 0 else {
+                if verbose {
+                    print("sdef extraction failed with exit code: \(process.terminationStatus)")
+                }
+                return nil
+            }
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            guard !data.isEmpty else {
+                if verbose {
+                    print("sdef extraction returned empty data")
+                }
+                return nil
+            }
+
+            try data.write(to: outputFile)
+
+            if verbose {
+                print("Successfully extracted SDEF to: \(outputFile.path)")
+            }
+
+            return outputFile
+        } catch {
+            if verbose {
+                print("Error extracting SDEF: \(error)")
+                print("PATH: \(ProcessInfo.processInfo.environment["PATH"] ?? "not set")")
+                print("This may be due to sandboxing restrictions in build plugins")
+            }
+            return nil
+        }
     }
 
     /// Gets the list of search paths, combining user-specified paths with defaults.
@@ -231,15 +427,7 @@ struct SDEFToSwift: AsyncParsableCommand {
 
         // If no search paths specified, use defaults
         if paths.isEmpty {
-            paths = [
-                ".",
-                "/Applications",
-                "/Applications/Utilities",
-                "/System/Applications",
-                "/System/Applications/Utilities",
-                "/System/Library/CoreServices",
-                "/Library/CoreServices"
-            ]
+            paths = DefaultSearchPaths.paths
         }
 
         return paths.filter { FileManager.default.fileExists(atPath: $0) }

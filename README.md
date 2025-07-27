@@ -177,6 +177,23 @@ sdef2swift Finder      # Searches for both "Finder.sdef" and "Finder"
 sdef2swift Finder.sdef # Searches for both "Finder.sdef" and "Finder"
 ```
 
+#### Bundle Identifier Support
+
+When you provide a bundle identifier as input, sdef2swift intelligently searches for matching `.sdef` files:
+
+```bash
+sdef2swift com.apple.Music    # Finds com.apple.Music.sdef, falls back to Music.sdef
+sdef2swift com.apple.Safari   # Finds Safari.sdef (since com.apple.Safari.sdef doesn't exist)
+```
+
+This is particularly useful with the build plugin, which uses `.sdefstub` files named with bundle identifiers.
+
+**Note**: When using the build plugin, automatic SDEF extraction using `/usr/bin/sdef` may fail due to sandboxing restrictions. In such cases, extract the .sdef file manually:
+
+```bash
+sdef /System/Applications/TextEdit.app > TextEdit.sdef
+```
+
 #### Custom Search Paths
 
 Specify custom directories to search:
@@ -256,15 +273,30 @@ The plugin automatically processes any `.sdef` and `.sdefstub` files in your tar
 
 #### 1. SDEF Stub Files (Recommended)
 
-Create `.sdefstub` files with the application name:
+Create `.sdefstub` files with the application name or bundle identifier:
 
 ```bash
 # Create stub files - plugin will find the real .sdef using search paths
 touch Sources/MyApp/Notes.sdefstub
 touch Sources/MyApp/Safari.sdefstub
+
+# Or use bundle identifiers for automatic application() function generation
+touch Sources/MyApp/com.apple.Music.sdefstub
+touch Sources/MyApp/com.apple.Notes.sdefstub
 ```
 
-The plugin will automatically locate the actual `.sdef` files using the same search logic as the command-line tool. The `.sdefstub` extension makes it clear these are placeholder files that trigger automatic discovery.
+The plugin will automatically locate the actual `.sdef` files using the same search logic as the command-line tool. When using bundle identifier naming (e.g., `com.apple.Music.sdefstub`), the plugin will:
+- Extract the basename (e.g., "Music") for the generated Swift file
+- Pass the bundle identifier to sdef2swift to generate a convenient `application()` function
+- Search for both `com.apple.Music.sdef` and `Music.sdef` files
+
+**Important**: Some applications (like TextEdit) don't include .sdef files in their bundles. For these apps, automatic extraction using `/usr/bin/sdef` may fail in the plugin environment due to sandboxing. In such cases, manually extract the .sdef file:
+
+```bash
+sdef /System/Applications/TextEdit.app > Sources/MyTarget/TextEdit.sdef
+```
+
+Then use `TextEdit.sdef` instead of `com.apple.TextEdit.sdefstub`.
 
 #### 2. Symlinked SDEF Files
 
@@ -347,8 +379,13 @@ import ScriptingBridge
 @main
 struct NotesMain {
     static func main() {
-        let app: Notes.Application? = SBApplication(bundleIdentifier: "com.apple.Notes")
-        guard let app else { fatalError("Could not access Notes") }
+        // If using com.apple.Notes.sdefstub, you get a convenient application() function
+        guard let app = Notes.application() else { 
+            fatalError("Could not access Notes") 
+        }
+        
+        // Or use the traditional approach:
+        // let app: Notes.Application? = SBApplication(bundleIdentifier: "com.apple.Notes")
         print("Got \(app.notes.count) notes")
         guard let firstNote = app.notes.first else { return }
         print("First note: " + (firstNote.name ?? "<unnamed>"))
