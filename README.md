@@ -67,6 +67,8 @@ OPTIONS:
                          Generate a public enum of scripting class names (default: true)
   -x, --generate-strongly-typed-extensions/--no-generate-strongly-typed-extensions
                          Generate strongly typed accessor extensions for element arrays (default: true)
+  -p, --prefixed         Generate prefixed typealiases for backward compatibility
+  -f, --flat             Generate flat (unprefixed) typealiases, e.g. when compiling in a separate module
   -h, --help             Show help information
 ```
 
@@ -88,6 +90,39 @@ sdef /System/Applications/Mail.app > Mail.sdef
 sdef2swift Mail.sdef --verbose
 ```
 
+## Generated Code Structure
+
+The generated Swift code uses a namespace-based approach where all types are contained within an enum that acts as a namespace. This provides better organization and avoids naming conflicts.
+
+### Namespace Approach (Default)
+
+All generated types are contained within a namespace enum named after the basename:
+
+```swift
+public enum Safari {
+    public typealias Application = SBApplication
+    public typealias Object = SBObject
+    public typealias ElementArray = SBElementArray
+    
+    @objc public enum SaveOptions: AEKeyword {
+        case yes = 0x79657320
+        case no = 0x6e6f2020
+        case ask = 0x61736b20
+    }
+    
+    public enum ClassNames {
+        public static let application = "application"
+        public static let document = "document"
+        // ...
+    }
+}
+```
+
+### Compatibility Options
+
+- **`--prefixed`**: Generates prefixed typealiases for backward compatibility (e.g., `SafariApplication`)
+- **`--flat`**: Generates unprefixed typealiases for when using the code as a separate module
+
 ## Using Generated Code
 
 Once you have generated Swift code, you can use it in your projects, e.g.:
@@ -98,24 +133,46 @@ import ScriptingBridge
 @main
 struct NotesMain {
     static func main() {
+        // Using the namespace approach
         let notesApp: NotesApplication? = SBApplication(bundleIdentifier: "com.apple.Notes")
         guard let notesApp else { fatalError("Could not access Notes") }
+        
+        // Access properties and elements
         let notes = notesApp.notesNotes
         print("Got \(notes.count) notes")
+        
         guard let firstNote = notes.first else { return }
         print("First note: " + (firstNote.name ?? "<unnamed>"))
+        
         if let isShared = firstNote.isShared {
             print(isShared  ? " is shared" : " is not shared")
         }
+        
         if let body = firstNote.scriptingBody {
             print(body)
         }
+        
         if !(notesApp.isActive ?? false) {
             notesApp.activate()
         }
     }
 }
+```
 
+### With Namespace (new default)
+
+```swift
+// Types are now accessed through the namespace
+let saveOption: Safari.SaveOptions = .yes
+let elementArray: Safari.ElementArray = safariApp.windows()
+```
+
+### With --prefixed option (backward compatibility)
+
+```swift
+// Traditional prefixed approach
+let saveOption: SafariSaveOptions = .yes
+let elementArray: SafariElementArray = safariApp.windows()
 ```
 
 ## Requirements

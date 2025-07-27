@@ -79,6 +79,14 @@ struct SDEFToSwift: AsyncParsableCommand {
     @Flag(name: .shortAndLong, help: "Recursively generate separate Swift files for included SDEF files (e.g., CocoaStandard.sdef)")
     var recursive = false
 
+    /// Whether to generate prefixed typealiases for backward compatibility
+    @Flag(name: .shortAndLong, help: "Generate prefixed typealiases for types (e.g., AppNameClassName) that map to the namespaced types")
+    var prefixed = false
+
+    /// Whether to generate flat (unprefixed) typealiases
+    @Flag(name: .shortAndLong, help: "Generate flat (unprefixed) typealiases for types, useful when using generated code as a separate module")
+    var flat = false
+
     /// Executes the main command logic to generate Swift code from the SDEF file.
     ///
     /// This method handles the complete workflow from validating input parameters to generating
@@ -128,7 +136,7 @@ struct SDEFToSwift: AsyncParsableCommand {
         }
 
         do {
-            let generator = SDEFSwiftGenerator(sdefURL: sdefURL, basename: finalBasename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: generateStronglyTypedExtensions, shouldGenerateRecursively: recursive, verbose: verbose)
+            let generator = SDEFSwiftGenerator(sdefURL: sdefURL, basename: finalBasename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: generateStronglyTypedExtensions, shouldGenerateRecursively: recursive, generatePrefixedTypealiases: prefixed, generateFlatTypealiases: flat, verbose: verbose)
             let outputURL = try await generator.generate()
             print("Generated Swift file: \(outputURL.path)")
 

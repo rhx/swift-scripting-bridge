@@ -186,14 +186,15 @@ struct SDEFTests {
         let generator = SDEFSwiftCodeGenerator(model: model, basename: "Test", shouldGenerateClassNamesEnum: false, shouldGenerateStronglyTypedExtensions: false, verbose: false)
         let swiftCode = try generator.generateCode()
 
-        // Verify basic structure
+        // Verify basic structure with namespace
         #expect(swiftCode.contains("import Foundation"))
         #expect(swiftCode.contains("import ScriptingBridge"))
-        #expect(swiftCode.contains("public typealias TestApplication = SBApplication"))
-        #expect(swiftCode.contains("@objc public protocol TestWindow:"))
+        #expect(swiftCode.contains("public enum Test {"))
+        #expect(swiftCode.contains("public typealias Application = SBApplication"))
+        #expect(swiftCode.contains("@objc(TestWindow) public protocol Window:")) // Protocol is now inside namespace with @objc attribute
         #expect(swiftCode.contains("/// The name property"))
-        #expect(swiftCode.contains("@objc optional var name: String"))
-        #expect(swiftCode.contains("extension SBObject: TestWindow"))
+        #expect(swiftCode.contains("@objc(name) optional var name: String"))
+        #expect(swiftCode.contains("extension SBObject: Test.Window")) // Extension references namespaced protocol
     }
 
     /// Tests the SDEF convenience API functionality.
@@ -227,8 +228,8 @@ struct SDEFTests {
         let generator = SDEFLibrary.swiftGenerator(for: model, basename: "Test", verbose: false)
         let swiftCode = try generator.generateCode()
 
-        #expect(swiftCode.contains("TestDocument"))
-        #expect(swiftCode.contains("@objc optional var name: String"))
+        #expect(swiftCode.contains("Test.Document")) // Now references namespaced protocol
+        #expect(swiftCode.contains("@objc(name) optional var name: String"))
     }
 
     /// Tests error handling for invalid XML input.
@@ -537,13 +538,13 @@ struct SDEFTests {
         let generator = SDEFSwiftCodeGenerator(model: model, basename: "Music", shouldGenerateClassNamesEnum: false, shouldGenerateStronglyTypedExtensions: false, verbose: false)
         let swiftCode = try generator.generateCode()
 
-        // Verify correct protocol name capitalization
-        #expect(swiftCode.contains("@objc public protocol MusicRadioTunerPlaylist:"))
-        #expect(swiftCode.contains("@objc public protocol MusicURLTrack:"))
+        // Verify correct protocol name capitalization (now inside namespace with @objc attribute)
+        #expect(swiftCode.contains("@objc(MusicRadioTunerPlaylist) public protocol RadioTunerPlaylist:"))
+        #expect(swiftCode.contains("@objc(MusicURLTrack) public protocol URLTrack:"))
 
         // Verify incorrect capitalization is not present
-        #expect(!swiftCode.contains("MusicRadiotunerplaylist"))
-        #expect(!swiftCode.contains("MusicUrltrack"))
+        #expect(!swiftCode.contains("Radiotunerplaylist"))
+        #expect(!swiftCode.contains("Urltrack"))
     }
 
     /// Tests strongly typed extension generation.
@@ -597,16 +598,16 @@ struct SDEFTests {
         // Verify the protocol method exists
         #expect(swiftCode.contains("@objc optional func URLTracks() -> SBElementArray"))
 
-        // Verify strongly typed extension is generated
+        // Verify strongly typed extension is generated (now with namespace)
         #expect(swiftCode.contains("/// Strongly typed accessors for radio tuner playlist"))
-        #expect(swiftCode.contains("public extension MusicRadioTunerPlaylist {"))
+        #expect(swiftCode.contains("public extension Music.RadioTunerPlaylist {"))
         #expect(swiftCode.contains("/// Strongly typed accessor for URL track elements"))
-        #expect(swiftCode.contains("var musicURLTracks: [MusicURLTrack] {"))
-        #expect(swiftCode.contains("URLTracks?() as? [MusicURLTrack] ?? []"))
+        #expect(swiftCode.contains("var musicURLTracks: [Music.URLTrack] {"))
+        #expect(swiftCode.contains("URLTracks?() as? [Music.URLTrack] ?? []"))
 
         // Verify correct property naming
-        #expect(swiftCode.contains("var musicURLTracks: [MusicURLTrack]"))
-        #expect(!swiftCode.contains("var urlTracks: [MusicURLTrack]"))
+        #expect(swiftCode.contains("var musicURLTracks: [Music.URLTrack]"))
+        #expect(!swiftCode.contains("var urlTracks: [Music.URLTrack]"))
     }
 
     /// Tests that strongly typed extensions are not generated when disabled.
@@ -710,11 +711,11 @@ struct SDEFTests {
         )
         let swiftCode = try generator.generateCode()
 
-        // Test 1: Protocol name capitalization fix
-        #expect(swiftCode.contains("@objc public protocol MusicAudioCDTrack:"))
-        #expect(swiftCode.contains("@objc public protocol MusicRadioTunerPlaylist:"))
-        #expect(!swiftCode.contains("MusicAudiocdtrack"))
-        #expect(!swiftCode.contains("MusicRadiotunerplaylist"))
+        // Test 1: Protocol name capitalization fix (now inside namespace with @objc attribute)
+        #expect(swiftCode.contains("@objc(MusicAudioCDTrack) public protocol AudioCDTrack:"))
+        #expect(swiftCode.contains("@objc(MusicRadioTunerPlaylist) public protocol RadioTunerPlaylist:"))
+        #expect(!swiftCode.contains("Audiocdtrack"))
+        #expect(!swiftCode.contains("Radiotunerplaylist"))
 
         // Test 2: Element array method camelCase fix
         #expect(swiftCode.contains("@objc optional func audioCDTracks() -> SBElementArray"))
@@ -732,12 +733,12 @@ struct SDEFTests {
         #expect(swiftCode.contains("/// Set the artist of the CD"))
         #expect(swiftCode.contains("@objc optional func setArtist(_ artist: String?)"))
 
-        // Test 5: Strongly typed extensions
+        // Test 5: Strongly typed extensions (now with namespace)
         #expect(swiftCode.contains("/// Strongly typed accessors for radio tuner playlist"))
-        #expect(swiftCode.contains("public extension MusicRadioTunerPlaylist {"))
+        #expect(swiftCode.contains("public extension Music.RadioTunerPlaylist {"))
         #expect(swiftCode.contains("/// Strongly typed accessor for audio CD track elements"))
-        #expect(swiftCode.contains("var musicAudioCDTracks: [MusicAudioCDTrack] {"))
-        #expect(swiftCode.contains("audioCDTracks?() as? [MusicAudioCDTrack] ?? []"))
+        #expect(swiftCode.contains("var musicAudioCDTracks: [Music.AudioCDTrack] {"))
+        #expect(swiftCode.contains("audioCDTracks?() as? [Music.AudioCDTrack] ?? []"))
 
         print("✅ All fixes verified: Protocol names, camelCase methods, DocC capitalization, setter comments, and strongly typed extensions")
     }
@@ -794,20 +795,475 @@ struct SDEFTests {
         )
         let swiftCode = try generator.generateCode()
 
-        // User's first issue: protocol name capitalization
-        #expect(swiftCode.contains("@objc public protocol MusicRadioTunerPlaylist:"))
-        #expect(!swiftCode.contains("MusicRadiotunerplaylist"))
+        // User's first issue: protocol name capitalization (now inside namespace)
+        #expect(swiftCode.contains("@objc(MusicRadioTunerPlaylist) public protocol RadioTunerPlaylist:"))
+        #expect(!swiftCode.contains("Radiotunerplaylist"))
 
         // User's second issue: URLTracks() method exists
         #expect(swiftCode.contains("@objc optional func URLTracks() -> SBElementArray"))
 
-        // User's third issue: strongly typed extension with type prefix to avoid clashes
-        #expect(swiftCode.contains("var musicURLTracks: [MusicURLTrack] {"))
-        #expect(swiftCode.contains("URLTracks?() as? [MusicURLTrack] ?? []"))
+        // User's third issue: strongly typed extension with type prefix to avoid clashes (now with namespace)
+        #expect(swiftCode.contains("var musicURLTracks: [Music.URLTrack] {"))
+        #expect(swiftCode.contains("URLTracks?() as? [Music.URLTrack] ?? []"))
 
         // Verify no name clash (different names for method vs property)
-        #expect(!swiftCode.contains("var URLTracks: [MusicURLTrack]"))
+        #expect(!swiftCode.contains("var URLTracks: [Music.URLTrack]"))
 
-        print("✅ User's original examples verified: MusicRadioTunerPlaylist, URLTracks() method, and musicURLTracks typed property")
+        print("✅ User's original examples verified: Music.RadioTunerPlaylist, URLTracks() method, and musicURLTracks typed property")
+    }
+
+    /// Tests namespace-based code generation.
+    ///
+    /// This test verifies that the new namespace approach correctly wraps
+    /// enumerations and type aliases inside a namespace enum.
+    @Test func testNamespaceGeneration() throws {
+        let enumerator1 = SDEFEnumerator(
+            name: "option1",
+            code: "opt1",
+            description: "First option",
+            stringValue: nil
+        )
+
+        let enumerator2 = SDEFEnumerator(
+            name: "option2",
+            code: "opt2",
+            description: "Second option",
+            stringValue: nil
+        )
+
+        let enumeration = SDEFEnumeration(
+            name: "test options",
+            code: "topt",
+            description: "Test enumeration",
+            enumerators: [enumerator1, enumerator2],
+            isHidden: false
+        )
+
+        let testClass = SDEFClass(
+            name: "document",
+            pluralName: "documents",
+            code: "docu",
+            description: "A document",
+            inherits: nil,
+            properties: [],
+            elements: [],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let suite = SDEFSuite(
+            name: "Test Suite",
+            code: "test",
+            description: "A test suite",
+            classes: [testClass],
+            enumerations: [enumeration],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(
+            model: model,
+            basename: "Test",
+            shouldGenerateClassNamesEnum: true,
+            shouldGenerateStronglyTypedExtensions: false,
+            verbose: false
+        )
+        let swiftCode = try generator.generateCode()
+
+        // Verify namespace enum exists
+        #expect(swiftCode.contains("public enum Test {"))
+
+        // Verify type aliases are inside namespace
+        #expect(swiftCode.contains("    public typealias Application = SBApplication"))
+        #expect(swiftCode.contains("    public typealias Object = SBObject"))
+        #expect(swiftCode.contains("    public typealias ElementArray = SBElementArray"))
+
+        // Verify enumeration is inside namespace
+        #expect(swiftCode.contains("    @objc public enum TestOptions: AEKeyword {"))
+        #expect(swiftCode.contains("        case option1 = 0x6f707431"))
+        #expect(swiftCode.contains("        case option2 = 0x6f707432"))
+
+        // Verify class names enum is inside namespace
+        #expect(swiftCode.contains("    public enum ClassNames {"))
+        #expect(swiftCode.contains("        public static let document = \"document\""))
+
+        // Verify SaveOptions is inside namespace
+        #expect(swiftCode.contains("    @objc public enum SaveOptions: AEKeyword {"))
+
+        // Verify namespace is closed
+        #expect(swiftCode.contains("}\n\nextension SBObject: Test.Document"))
+    }
+
+    /// Tests prefixed typealiases generation.
+    ///
+    /// This test verifies that the --prefixed option generates backward-compatible
+    /// prefixed typealiases that map to the namespaced types.
+    @Test func testPrefixedTypealiases() throws {
+        let enumeration = SDEFEnumeration(
+            name: "save format",
+            code: "sfmt",
+            description: "Save format options",
+            enumerators: [
+                SDEFEnumerator(name: "pdf", code: "pdf ", description: "PDF format", stringValue: nil),
+                SDEFEnumerator(name: "jpeg", code: "jpeg", description: "JPEG format", stringValue: nil)
+            ],
+            isHidden: false
+        )
+
+        let suite = SDEFSuite(
+            name: "Test Suite",
+            code: "test",
+            description: "A test suite",
+            classes: [],
+            enumerations: [enumeration],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(
+            model: model,
+            basename: "Test",
+            shouldGenerateClassNamesEnum: false,
+            shouldGenerateStronglyTypedExtensions: false,
+            generatePrefixedTypealiases: true,
+            verbose: false
+        )
+        let swiftCode = try generator.generateCode()
+
+        // Verify prefixed typealiases section exists
+        #expect(swiftCode.contains("// MARK: - Prefixed Type Aliases (for backward compatibility)"))
+
+        // Verify prefixed typealiases map to namespace
+        #expect(swiftCode.contains("public typealias TestApplication = Test.Application"))
+        #expect(swiftCode.contains("public typealias TestObject = Test.Object"))
+        #expect(swiftCode.contains("public typealias TestElementArray = Test.ElementArray"))
+        #expect(swiftCode.contains("public typealias TestSaveOptions = Test.SaveOptions"))
+        #expect(swiftCode.contains("public typealias TestSaveFormat = Test.SaveFormat"))
+    }
+
+    /// Tests flat typealiases generation.
+    ///
+    /// This test verifies that the --flat option generates unprefixed typealiases
+    /// for use when the generated code is used as a separate module.
+    @Test func testFlatTypealiases() throws {
+        let enumeration = SDEFEnumeration(
+            name: "export format",
+            code: "efmt",
+            description: "Export format options",
+            enumerators: [
+                SDEFEnumerator(name: "png", code: "png ", description: "PNG format", stringValue: nil),
+                SDEFEnumerator(name: "tiff", code: "tiff", description: "TIFF format", stringValue: nil)
+            ],
+            isHidden: false
+        )
+
+        let suite = SDEFSuite(
+            name: "Test Suite",
+            code: "test",
+            description: "A test suite",
+            classes: [],
+            enumerations: [enumeration],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(
+            model: model,
+            basename: "Test",
+            shouldGenerateClassNamesEnum: false,
+            shouldGenerateStronglyTypedExtensions: false,
+            generateFlatTypealiases: true,
+            verbose: false
+        )
+        let swiftCode = try generator.generateCode()
+
+        // Verify flat typealiases section exists
+        #expect(swiftCode.contains("// MARK: - Flat Type Aliases (for use as a separate module)"))
+
+        // Verify flat typealiases map to namespace
+        #expect(swiftCode.contains("public typealias Application = Test.Application"))
+        #expect(swiftCode.contains("public typealias Object = Test.Object"))
+        #expect(swiftCode.contains("public typealias ElementArray = Test.ElementArray"))
+        #expect(swiftCode.contains("public typealias SaveOptions = Test.SaveOptions"))
+        #expect(swiftCode.contains("public typealias ExportFormat = Test.ExportFormat"))
+    }
+
+    /// Tests both prefixed and flat typealiases together.
+    ///
+    /// This test verifies that both --prefixed and --flat options can be used
+    /// together to generate both sets of typealiases.
+    @Test func testBothPrefixedAndFlatTypealiases() throws {
+        let suite = SDEFSuite(
+            name: "Test Suite",
+            code: "test",
+            description: "A test suite",
+            classes: [],
+            enumerations: [],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(
+            model: model,
+            basename: "Test",
+            shouldGenerateClassNamesEnum: false,
+            shouldGenerateStronglyTypedExtensions: false,
+            generatePrefixedTypealiases: true,
+            generateFlatTypealiases: true,
+            verbose: false
+        )
+        let swiftCode = try generator.generateCode()
+
+        // Verify both sections exist
+        #expect(swiftCode.contains("// MARK: - Prefixed Type Aliases (for backward compatibility)"))
+        #expect(swiftCode.contains("// MARK: - Flat Type Aliases (for use as a separate module)"))
+
+        // Verify prefixed aliases
+        #expect(swiftCode.contains("public typealias TestApplication = Test.Application"))
+        #expect(swiftCode.contains("public typealias TestObject = Test.Object"))
+
+        // Verify flat aliases
+        #expect(swiftCode.contains("public typealias Application = Test.Application"))
+        #expect(swiftCode.contains("public typealias Object = Test.Object"))
+    }
+
+    /// Tests that enum types are properly referenced using namespace.
+    ///
+    /// This test verifies that when enum types are used in protocol methods,
+    /// they reference the namespaced version (e.g., Test.SaveOptions).
+    @Test func testEnumTypeReferencesUseNamespace() throws {
+        let testClass = SDEFClass(
+            name: "document",
+            pluralName: "documents",
+            code: "docu",
+            description: "A document",
+            inherits: nil,
+            properties: [],
+            elements: [],
+            respondsTo: [],
+            isHidden: false
+        )
+
+        let suite = SDEFSuite(
+            name: "Test Suite",
+            code: "test",
+            description: "A test suite",
+            classes: [testClass],
+            enumerations: [],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(
+            model: model,
+            basename: "Test",
+            shouldGenerateClassNamesEnum: false,
+            shouldGenerateStronglyTypedExtensions: false,
+            verbose: false
+        )
+        let swiftCode = try generator.generateCode()
+
+        // Verify generic methods protocol uses namespaced SaveOptions
+        #expect(swiftCode.contains("@objc optional func closeSaving(_ saving: Test.SaveOptions, savingIn: URL?)"))
+
+        // Verify it doesn't use the old prefixed format
+        #expect(!swiftCode.contains("TestSaveOptions"))
+    }
+
+    /// Tests the new SDEFSwiftGenerator constructor with namespace options.
+    ///
+    /// This test verifies that the SDEFSwiftGenerator properly accepts and uses
+    /// the new generatePrefixedTypealiases and generateFlatTypealiases parameters.
+    @Test func testSDEFSwiftGeneratorWithNamespaceOptions() throws {
+        // Create minimal SDEF XML
+        let xmlString = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <dictionary>
+            <suite name="Test Suite" code="test">
+                <class name="document" code="docu">
+                    <property name="name" code="pnam" type="text" access="r"/>
+                </class>
+                <enumeration name="format" code="fmt ">
+                    <enumerator name="pdf" code="pdf "/>
+                    <enumerator name="jpeg" code="jpeg"/>
+                </enumeration>
+            </suite>
+        </dictionary>
+        """
+
+        let xmlData = xmlString.data(using: .utf8)!
+        let xmlDocument = try XMLDocument(data: xmlData, options: [])
+
+        // Test with prefixed typealiases
+        let parser = SDEFParser(document: xmlDocument, includeHidden: false, verbose: false)
+        let model = try parser.parse()
+
+        let generator = SDEFSwiftCodeGenerator(
+            model: model,
+            basename: "Test",
+            shouldGenerateClassNamesEnum: true,
+            shouldGenerateStronglyTypedExtensions: false,
+            generatePrefixedTypealiases: true,
+            generateFlatTypealiases: false,
+            verbose: false
+        )
+        let swiftCode = try generator.generateCode()
+
+        // Verify namespace exists
+        #expect(swiftCode.contains("public enum Test {"))
+
+        // Verify prefixed typealiases exist but flat ones don't
+        #expect(swiftCode.contains("public typealias TestFormat = Test.Format"))
+        #expect(!swiftCode.contains("public typealias Format = Test.Format"))
+
+        // Test with flat typealiases
+        let generatorFlat = SDEFSwiftCodeGenerator(
+            model: model,
+            basename: "Test",
+            shouldGenerateClassNamesEnum: true,
+            shouldGenerateStronglyTypedExtensions: false,
+            generatePrefixedTypealiases: false,
+            generateFlatTypealiases: true,
+            verbose: false
+        )
+        let swiftCodeFlat = try generatorFlat.generateCode()
+
+        // Verify flat typealiases exist but prefixed ones don't
+        #expect(swiftCodeFlat.contains("public typealias Format = Test.Format"))
+        #expect(!swiftCodeFlat.contains("public typealias TestFormat = Test.Format"))
+    }
+
+    /// Tests that no typealiases are generated when neither flag is set.
+    ///
+    /// This test verifies that when both generatePrefixedTypealiases and
+    /// generateFlatTypealiases are false, no global typealiases are generated.
+    @Test func testNoTypealiasesWhenFlagsDisabled() throws {
+        let enumeration = SDEFEnumeration(
+            name: "save options",
+            code: "sopt",
+            description: "Save options",
+            enumerators: [
+                SDEFEnumerator(name: "yes", code: "yes ", description: "Save", stringValue: nil),
+                SDEFEnumerator(name: "no", code: "no  ", description: "Don't save", stringValue: nil)
+            ],
+            isHidden: false
+        )
+
+        let suite = SDEFSuite(
+            name: "Test Suite",
+            code: "test",
+            description: "A test suite",
+            classes: [],
+            enumerations: [enumeration],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(
+            model: model,
+            basename: "Test",
+            shouldGenerateClassNamesEnum: false,
+            shouldGenerateStronglyTypedExtensions: false,
+            generatePrefixedTypealiases: false,
+            generateFlatTypealiases: false,
+            verbose: false
+        )
+        let swiftCode = try generator.generateCode()
+
+        // Verify NO typealias sections are generated
+        #expect(!swiftCode.contains("// MARK: - Prefixed Type Aliases"))
+        #expect(!swiftCode.contains("// MARK: - Flat Type Aliases"))
+
+        // Verify specific typealiases don't exist
+        #expect(!swiftCode.contains("public typealias TestSaveOptions = Test.SaveOptions"))
+        #expect(!swiftCode.contains("public typealias SaveOptions = Test.SaveOptions"))
+        #expect(!swiftCode.contains("public typealias TestObject = Test.Object"))
+        #expect(!swiftCode.contains("public typealias Object = Test.Object"))
+
+        // But verify namespace structure still exists
+        #expect(swiftCode.contains("public enum Test {"))
+        #expect(swiftCode.contains("@objc public enum SaveOptions: AEKeyword {"))
+    }
+
+    /// Tests prefixed typealiases are not generated when flag is false.
+    ///
+    /// This test specifically verifies the negative case where prefixed
+    /// typealiases should not be generated.
+    @Test func testPrefixedTypealiasesNotGeneratedWhenDisabled() throws {
+        let suite = SDEFSuite(
+            name: "Test Suite",
+            code: "test",
+            description: "A test suite",
+            classes: [],
+            enumerations: [],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(
+            model: model,
+            basename: "Test",
+            shouldGenerateClassNamesEnum: false,
+            shouldGenerateStronglyTypedExtensions: false,
+            generatePrefixedTypealiases: false,  // Explicitly disabled
+            generateFlatTypealiases: true,       // Enable flat to contrast
+            verbose: false
+        )
+        let swiftCode = try generator.generateCode()
+
+        // Verify NO prefixed typealias section
+        #expect(!swiftCode.contains("// MARK: - Prefixed Type Aliases"))
+        #expect(!swiftCode.contains("public typealias TestObject = Test.Object"))
+        #expect(!swiftCode.contains("public typealias TestElementArray = Test.ElementArray"))
+
+        // But verify flat typealiases ARE generated
+        #expect(swiftCode.contains("// MARK: - Flat Type Aliases"))
+        #expect(swiftCode.contains("public typealias Object = Test.Object"))
+        #expect(swiftCode.contains("public typealias ElementArray = Test.ElementArray"))
+    }
+
+    /// Tests flat typealiases are not generated when flag is false.
+    ///
+    /// This test specifically verifies the negative case where flat
+    /// typealiases should not be generated.
+    @Test func testFlatTypealiasesNotGeneratedWhenDisabled() throws {
+        let suite = SDEFSuite(
+            name: "Test Suite",
+            code: "test",
+            description: "A test suite",
+            classes: [],
+            enumerations: [],
+            commands: [],
+            classExtensions: []
+        )
+
+        let model = SDEFModel(suites: [suite])
+        let generator = SDEFSwiftCodeGenerator(
+            model: model,
+            basename: "Test",
+            shouldGenerateClassNamesEnum: false,
+            shouldGenerateStronglyTypedExtensions: false,
+            generatePrefixedTypealiases: true,   // Enable prefixed to contrast
+            generateFlatTypealiases: false,      // Explicitly disabled
+            verbose: false
+        )
+        let swiftCode = try generator.generateCode()
+
+        // Verify NO flat typealias section
+        #expect(!swiftCode.contains("// MARK: - Flat Type Aliases"))
+        #expect(!swiftCode.contains("public typealias Object = Test.Object"))
+        #expect(!swiftCode.contains("public typealias ElementArray = Test.ElementArray"))
+
+        // But verify prefixed typealiases ARE generated
+        #expect(swiftCode.contains("// MARK: - Prefixed Type Aliases"))
+        #expect(swiftCode.contains("public typealias TestObject = Test.Object"))
+        #expect(swiftCode.contains("public typealias TestElementArray = Test.ElementArray"))
     }
 }

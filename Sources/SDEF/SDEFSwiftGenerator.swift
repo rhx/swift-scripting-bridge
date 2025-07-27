@@ -2,7 +2,8 @@
 // SDEFSwiftGenerator.swift
 // SDEF
 //
-// Created by sdef2swift
+// Created by Rene Hexel on 1/06/2024.
+// Copyright © 2024, 2025 Rene Hexel. All rights reserved.
 //
 
 import Foundation
@@ -25,6 +26,8 @@ public final class SDEFSwiftGenerator {
     private let generateClassNamesEnum: Bool
     private let shouldGenerateStronglyTypedExtensions: Bool
     private let shouldGenerateRecursively: Bool
+    private let generatePrefixedTypealiases: Bool
+    private let generateFlatTypealiases: Bool
     private let verbose: Bool
 
     /// Creates a new SDEF Swift generator with the specified configuration.
@@ -42,8 +45,10 @@ public final class SDEFSwiftGenerator {
     ///   - generateClassNamesEnum: Whether to generate an enum containing all scripting class names
     ///   - shouldGenerateStronglyTypedExtensions: Whether to generate strongly typed accessor extensions
     ///   - shouldGenerateRecursively: Whether to recursively generate files for included SDEF files
+    ///   - generatePrefixedTypealiases: Whether to generate prefixed typealiases for backward compatibility
+    ///   - generateFlatTypealiases: Whether to generate flat (unprefixed) typealiases
     ///   - verbose: Whether to provide detailed logging during the generation process
-    public init(sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool, generateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, shouldGenerateRecursively: Bool, verbose: Bool) {
+    public init(sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool, generateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, shouldGenerateRecursively: Bool, generatePrefixedTypealiases: Bool = false, generateFlatTypealiases: Bool = false, verbose: Bool) {
         self.sdefURL = sdefURL
         self.basename = basename
         self.outputDirectory = outputDirectory
@@ -51,6 +56,8 @@ public final class SDEFSwiftGenerator {
         self.generateClassNamesEnum = generateClassNamesEnum
         self.shouldGenerateStronglyTypedExtensions = shouldGenerateStronglyTypedExtensions
         self.shouldGenerateRecursively = shouldGenerateRecursively
+        self.generatePrefixedTypealiases = generatePrefixedTypealiases
+        self.generateFlatTypealiases = generateFlatTypealiases
         self.verbose = verbose
     }
 
@@ -103,7 +110,7 @@ public final class SDEFSwiftGenerator {
         }
 
         // Generate Swift code
-        let codeGenerator = SDEFSwiftCodeGenerator(model: sdefModel, basename: basename, shouldGenerateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions, verbose: verbose)
+        let codeGenerator = SDEFSwiftCodeGenerator(model: sdefModel, basename: basename, shouldGenerateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions, generatePrefixedTypealiases: generatePrefixedTypealiases, generateFlatTypealiases: generateFlatTypealiases, verbose: verbose)
         let swiftCode: String
         do {
             swiftCode = try codeGenerator.generateCode()
@@ -146,11 +153,15 @@ public final class SDEFSwiftGenerator {
             }
 
             // Generate Swift code for the included model
+            // Note: Flat typealiases should only be generated for the main file, not included files
+            // to avoid conflicts when multiple files are in the same directory
             let includeCodeGenerator = SDEFSwiftCodeGenerator(
                 model: include.model,
                 basename: include.basename,
                 shouldGenerateClassNamesEnum: generateClassNamesEnum,
                 shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions,
+                generatePrefixedTypealiases: generatePrefixedTypealiases,
+                generateFlatTypealiases: false, // Never generate flat typealiases for included files
                 isIncludedFile: true,
                 verbose: verbose
             )

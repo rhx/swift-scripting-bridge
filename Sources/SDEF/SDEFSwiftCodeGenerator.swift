@@ -24,8 +24,20 @@ public final class SDEFSwiftCodeGenerator {
     private let baseName: String
     private let shouldGenerateClassNamesEnum: Bool
     private let shouldGenerateStronglyTypedExtensions: Bool
+    private let generatePrefixedTypealiases: Bool
+    private let generateFlatTypealiases: Bool
     private let isIncludedFile: Bool
     private let verbose: Bool
+    private lazy var enumerationNames: Set<String> = {
+        var names = Set<String>()
+        for suite in model.suites {
+            for enumeration in suite.enumerations {
+                let enumName = swiftClassName(enumeration.name)
+                names.insert(enumName)
+            }
+        }
+        return names
+    }()
 
     /// Creates a new Swift code generator with the specified configuration.
     ///
@@ -39,13 +51,17 @@ public final class SDEFSwiftCodeGenerator {
     ///   - basename: The prefix to use for all generated Swift types
     ///   - shouldGenerateClassNamesEnum: Whether to generate an enum containing all scripting class names
     ///   - shouldGenerateStronglyTypedExtensions: Whether to generate strongly typed accessor extensions
+    ///   - generatePrefixedTypealiases: Whether to generate prefixed typealiases for backward compatibility
+    ///   - generateFlatTypealiases: Whether to generate flat (unprefixed) typealiases
     ///   - isIncludedFile: Whether this is an included file (skips foundation protocols)
     ///   - verbose: Whether to enable detailed logging during code generation
-    public init(model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, isIncludedFile: Bool = false, verbose: Bool) {
+    public init(model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, generatePrefixedTypealiases: Bool = false, generateFlatTypealiases: Bool = false, isIncludedFile: Bool = false, verbose: Bool) {
         self.model = model
         self.baseName = basename
         self.shouldGenerateClassNamesEnum = shouldGenerateClassNamesEnum
         self.shouldGenerateStronglyTypedExtensions = shouldGenerateStronglyTypedExtensions
+        self.generatePrefixedTypealiases = generatePrefixedTypealiases
+        self.generateFlatTypealiases = generateFlatTypealiases
         self.isIncludedFile = isIncludedFile
         self.verbose = verbose
     }
@@ -186,44 +202,58 @@ public final class SDEFSwiftCodeGenerator {
 
         """
 
-        // Generate type aliases for common ScriptingBridge types
-        code += generateTypeAliases()
-
-        // Generate standard protocols and enums first
+        // Generate standard protocols and enums first (outside namespace)
         code += generateApplicationProtocol()
+
+        // Start namespace enum
+        code += "\n\n// MARK: - \(baseName) Namespace\n\n"
+        code += "/// Namespace for all \(baseName) scripting types.\n"
+        code += "public enum \(baseName) {\n"
+
+        // Generate type aliases inside namespace
+        code += generateNamespacedTypeAliases()
+
+        // Generate standard enums inside namespace
+        code += generateNamespacedStandardEnums()
 
         // Generate class names enum if requested
         if shouldGenerateClassNamesEnum {
-            code += generateClassNamesEnum()
+            code += generateNamespacedClassNamesEnum()
         }
 
-        // Generate enumerations
+        // Generate enumerations inside namespace
         for suite in model.suites {
             for enumeration in suite.enumerations {
-                code += generateEnumeration(enumeration)
+                code += generateNamespacedEnumeration(enumeration)
             }
         }
 
-        // Generate protocols for standard classes that haven't been merged
+        // Generate protocols for standard classes that haven't been merged (inside namespace)
         let mergedClassNames = Set(model.suites.flatMap { $0.classes }.map { $0.name })
         for standardClass in model.standardClasses {
             // Only generate if this standard class hasn't been merged into a regular class
             if !mergedClassNames.contains(standardClass.name) {
-                code += generateClassProtocol(standardClass, suite: SDEFSuite(name: "Standard", code: "std", description: "Standard classes", classes: [], enumerations: [], commands: [], classExtensions: []))
+                code += generateNamespacedClassProtocol(standardClass, suite: SDEFSuite(name: "Standard", code: "std", description: "Standard classes", classes: [], enumerations: [], commands: [], classExtensions: []))
             }
         }
 
-        // Generate protocols for classes
+        // Generate protocols for classes (inside namespace)
         for suite in model.suites {
             for sdefClass in suite.classes {
-                code += generateClassProtocol(sdefClass, suite: suite)
+                code += generateNamespacedClassProtocol(sdefClass, suite: suite)
             }
 
-            // Generate protocols for class extensions
+            // Generate protocols for class extensions (inside namespace)
             for classExtension in suite.classExtensions {
-                code += generateClassExtensionProtocol(classExtension, suite: suite)
+                code += generateNamespacedClassExtensionProtocol(classExtension, suite: suite)
             }
         }
+
+        // Close namespace enum
+        code += "\n}\n"
+
+        // Generate SBObject extensions for namespaced protocols
+        code += generateNamespacedSBObjectExtensions()
 
         // Generate strongly typed extensions if requested
         if shouldGenerateStronglyTypedExtensions {
@@ -232,6 +262,16 @@ public final class SDEFSwiftCodeGenerator {
 
         // Generate SBApplication extension
         code += generateSBApplicationExtension()
+
+        // Generate prefixed typealiases if requested
+        if generatePrefixedTypealiases {
+            code += generatePrefixedTypealiasesSection()
+        }
+
+        // Generate flat typealiases if requested
+        if generateFlatTypealiases {
+            code += generateFlatTypealiasesSection()
+        }
 
         return code
     }
@@ -471,6 +511,241 @@ public typealias \(baseName)ElementArray = SBElementArray
         return code
     }
 
+    private func generateNamespacedClassProtocol(_ sdefClass: SDEFClass, suite: SDEFSuite) -> String {
+        let protocolName = swiftClassName(sdefClass.name)
+
+        var code = """
+
+            // MARK: - \(sdefClass.name)
+
+        """
+
+        if let description = sdefClass.description {
+            code += "    /// \(description.capitalizingFirstLetter())\n"
+        }
+
+        var inheritanceList: [String]
+
+        // Application classes should inherit from SBApplicationProtocol, others from SBObjectProtocol
+        // Use prefixed versions from outside the namespace
+        if sdefClass.name.lowercased() == "application" {
+            inheritanceList = ["\(baseName)SBApplicationProtocol"]
+        } else {
+            inheritanceList = ["\(baseName)SBObjectProtocol"]
+        }
+
+        // Add GenericMethods for standard classes
+        if ["window", "document", "application"].contains(sdefClass.name.lowercased()) {
+            inheritanceList.append("\(baseName)GenericMethods")
+        }
+
+        if let inherits = sdefClass.inherits {
+            let cleanInherits = swiftClassName(inherits)
+
+            // Check if the inherited class actually exists in the model
+            let allClasses = model.suites.flatMap { $0.classes } + model.standardClasses
+            let inheritsClassExists = allClasses.contains { $0.name.lowercased() == inherits.lowercased() }
+
+            if inheritsClassExists {
+                // Reference within the same namespace
+                inheritanceList.append(cleanInherits)
+            } else if verbose {
+                print("Warning: Class '\(sdefClass.name)' inherits from '\(inherits)' but '\(inherits)' is not defined in the SDEF model")
+            }
+        }
+
+        code += "    @objc(\(baseName)\(protocolName)) public protocol \(protocolName): \(inheritanceList.joined(separator: ", ")) {\n"
+
+        // Generate properties
+        for property in sdefClass.properties {
+            code += generateNamespacedProperty(property)
+        }
+
+        // Generate element arrays
+        for element in sdefClass.elements {
+            // Look up the class to get its plural name
+            var methodName: String
+
+            // Find the class definition for this element type
+            // First check in regular classes, then in standard classes
+            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type }
+                ?? model.standardClasses.first { $0.name == element.type }
+
+            if let elementClass = elementClass, let pluralName = elementClass.pluralName {
+                // Use the defined plural name and convert to camelCase
+                methodName = swiftMethodName(pluralName)
+            } else {
+                // Fallback: use the type name + "s" and convert to camelCase
+                let pluralForm = element.type + "s"
+                methodName = swiftMethodName(pluralForm)
+            }
+
+            // Add documentation if available
+            if let elementClass = elementClass, let description = elementClass.description {
+                code += "        /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
+            }
+
+            code += "        @objc optional func \(methodName)() -> SBElementArray\n"
+        }
+
+        // Generate setter methods only for write-only properties
+        for property in sdefClass.properties {
+            if property.access == "w" { // Write-only properties need explicit setter methods
+                let propertyName = if let cocoaKey = property.cocoaKey {
+                    // Cocoa keys are already in proper Swift naming convention
+                    escapeReservedKeyword(cocoaKey)
+                } else {
+                    swiftPropertyName(property.name)
+                }
+                let swiftType = swiftSetterParameterType(for: property.type)
+
+                // Generate DocC comment for setter
+                if let description = property.description {
+                    let setterDescription = "Set \(description.lowercaseFirstLetter())"
+                    code += "        /// \(setterDescription.capitalizingFirstLetter())\n"
+                }
+
+                // Fix setter naming for special cases
+                let setterName = switch property.name.lowercased() {
+                case "current tab":
+                    "CurrentTab"
+                case "url":
+                    "URL"
+                default:
+                    propertyName.capitalizingFirstLetter()
+                }
+
+                code += "        @objc optional func set\(setterName)(_ \(propertyName): \(swiftType))\n"
+            }
+        }
+
+        code += "    }\n"
+
+        return code
+    }
+
+    private func generateNamespacedClassExtensionProtocol(_ classExtension: SDEFClassExtension, suite: SDEFSuite) -> String {
+        let baseTypeName = swiftClassName(classExtension.extends)
+        let protocolName = baseTypeName
+
+        var code = """
+
+            // MARK: - \(classExtension.extends) Extension
+
+            @objc(\(baseName)\(protocolName)) public protocol \(protocolName): SBObject {
+
+        """
+
+        // Generate properties
+        for property in classExtension.properties {
+            code += generateNamespacedProperty(property)
+        }
+
+        // Generate element arrays
+        for element in classExtension.elements {
+            // Look up the class to get its plural name
+            var methodName: String
+
+            // Find the class definition for this element type
+            // First check in regular classes, then in standard classes
+            let elementClass = model.suites.flatMap { $0.classes }.first { $0.name == element.type }
+                ?? model.standardClasses.first { $0.name == element.type }
+
+            if let elementClass = elementClass, let pluralName = elementClass.pluralName {
+                // Use the defined plural name and convert to camelCase
+                methodName = swiftMethodName(pluralName)
+            } else {
+                // Fallback: use the type name + "s" and convert to camelCase
+                let pluralForm = element.type + "s"
+                methodName = swiftMethodName(pluralForm)
+            }
+
+            // Add documentation if available
+            if let elementClass = elementClass, let description = elementClass.description {
+                code += "        /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
+            }
+
+            code += "        @objc optional func \(methodName)() -> SBElementArray\n"
+        }
+
+        code += "    }\n"
+
+        return code
+    }
+
+    private func generateNamespacedProperty(_ property: SDEFProperty) -> String {
+        var code = ""
+
+        if let description = property.description {
+            code += "        /// \(description.capitalizingFirstLetter())\n"
+        }
+
+        // Use cocoa key if available, otherwise use the property name
+        let propertyName = if let cocoaKey = property.cocoaKey {
+            // Cocoa keys are already in proper Swift naming convention (e.g., isShared)
+            // Just escape reserved keywords if needed
+            escapeReservedKeyword(cocoaKey)
+        } else {
+            swiftPropertyName(property.name)
+        }
+        let swiftType = swiftNamespacedType(for: property.type)
+
+        let accessors = switch property.access {
+        case "r":
+            "{ get }"
+        case "rw", "":
+            "{ get set }"
+        case "w":
+            "{ get set }" // Even write-only properties need to be readable in Swift protocols
+        default:
+            "{ get set }"
+        }
+
+        // Add @objc attribute with original name mapping
+        let objcName = property.cocoaKey ?? property.name
+        code += "        @objc(\(objcName)) optional var \(propertyName): \(swiftType) \(accessors)\n"
+
+        return code
+    }
+
+    private func generateNamespacedSBObjectExtensions() -> String {
+        var code = ""
+
+        // Generate extensions for standard classes that haven't been merged
+        let mergedClassNames = Set(model.suites.flatMap { $0.classes }.map { $0.name })
+        for standardClass in model.standardClasses {
+            // Only generate if this standard class hasn't been merged into a regular class
+            if !mergedClassNames.contains(standardClass.name) {
+                let protocolName = swiftClassName(standardClass.name)
+                if standardClass.name.lowercased() == "application" {
+                    code += "\nextension SBApplication: \(baseName).\(protocolName) {}\n"
+                } else {
+                    code += "\nextension SBObject: \(baseName).\(protocolName) {}\n"
+                }
+            }
+        }
+
+        // Generate extensions for regular classes
+        for suite in model.suites {
+            for sdefClass in suite.classes {
+                let protocolName = swiftClassName(sdefClass.name)
+                if sdefClass.name.lowercased() == "application" {
+                    code += "\nextension SBApplication: \(baseName).\(protocolName) {}\n"
+                } else {
+                    code += "\nextension SBObject: \(baseName).\(protocolName) {}\n"
+                }
+            }
+
+            // Generate extensions for class extensions
+            for classExtension in suite.classExtensions {
+                let protocolName = swiftClassName(classExtension.extends)
+                code += "\nextension SBObject: \(baseName).\(protocolName) {}\n"
+            }
+        }
+
+        return code
+    }
+
     private func generateProperty(_ property: SDEFProperty) -> String {
         var code = ""
 
@@ -515,18 +790,10 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         return """
 
-        // MARK: - Save Options Enum
-
-        @objc public enum \(baseName)SaveOptions: AEKeyword {
-            case yes = 0x79657320  // 'yes '
-            case no = 0x6e6f2020   // 'no  '
-            case ask = 0x61736b20  // 'ask '
-        }
-
         // MARK: - Generic Methods Protocol
 
         @objc public protocol \(baseName)GenericMethods {
-            @objc optional func closeSaving(_ saving: \(baseName)SaveOptions, savingIn: URL?)
+            @objc optional func closeSaving(_ saving: \(baseName).SaveOptions, savingIn: URL?)
             @objc optional func saveIn(_ in_: URL?, as: Any?)
             @objc optional func printWithProperties(_ withProperties: [String: Any]?, printDialog: Bool)
             @objc optional func delete()
@@ -626,9 +893,80 @@ public typealias \(baseName)ElementArray = SBElementArray
         case "double integer":
             return "Int64"
         default:
-            // Assume it's a class name - clean up the name
+            // Check if it's an enumeration type
             let cleanType = swiftClassName(objcType)
-            return "\(baseName)\(cleanType)"
+            if enumerationNames.contains(cleanType) {
+                // It's an enum - use namespace
+                return "\(baseName).\(cleanType)"
+            } else {
+                // It's a class name - use protocol name
+                return "\(baseName)\(cleanType)"
+            }
+        }
+    }
+
+    private func swiftNamespacedType(for propertyType: SDEFPropertyType) -> String {
+        var baseType = swiftNamespacedTypeName(propertyType.baseType)
+
+        if propertyType.isList {
+            baseType = "[\(baseType)]"
+        }
+
+        // For @objc optional properties, never make types optional to avoid double optionals
+        // The @objc optional already provides the optionality
+        return baseType
+    }
+
+    private func swiftNamespacedTypeName(_ objcType: String) -> String {
+        switch objcType.lowercased() {
+        case "text", "string":
+            return "String"
+        case "integer", "int":
+            return "Int"
+        case "real", "double":
+            return "Double"
+        case "boolean", "bool":
+            return "Bool"
+        case "date":
+            return "Date"
+        case "file", "alias":
+            return "URL"
+        case "record":
+            return "[String: Any]"
+        case "any":
+            return "Any"
+        case "missing value":
+            return "NSNull"
+        case "rectangle":
+            return "NSRect"
+        case "number":
+            return "NSNumber"
+        case "point":
+            return "NSPoint"
+        case "size":
+            return "NSSize"
+        case "specifier":
+            return "SBObject"
+        case "location specifier":
+            return "SBObject"
+        case "type":
+            return "OSType"
+        case "picture":
+            return "NSImage"
+        case "enum":
+            return "OSType"
+        case "double integer":
+            return "Int64"
+        default:
+            // Check if it's an enumeration type
+            let cleanType = swiftClassName(objcType)
+            if enumerationNames.contains(cleanType) {
+                // It's an enum - reference within the same namespace
+                return cleanType
+            } else {
+                // It's a class name - reference within the same namespace
+                return cleanType
+            }
         }
     }
 
@@ -803,7 +1141,7 @@ public typealias \(baseName)ElementArray = SBElementArray
     }
 
     private func generateStronglyTypedExtension(_ sdefClass: SDEFClass, suite: SDEFSuite?) -> String {
-        let protocolName = "\(baseName)\(swiftClassName(sdefClass.name))"
+        let protocolName = "\(baseName).\(swiftClassName(sdefClass.name))"
 
         var code = """
 
@@ -839,7 +1177,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 pluralPropertyName = swiftMethodName(pluralForm)
             }
 
-            let elementTypeName = "\(baseName)\(swiftClassName(element.type))"
+            let elementTypeName = "\(baseName).\(swiftClassName(element.type))"
             let prefixedPropertyName = baseName.lowercaseFirstLetter() + pluralPropertyName.capitalizingFirstLetter()
 
             code += """
@@ -895,6 +1233,233 @@ public typealias \(baseName)ElementArray = SBElementArray
     /// proper Swift enum case names.
     ///
     /// - Returns: Swift code for the class names enumeration
+    // MARK: - Namespace Methods
+
+    private func generateNamespacedStandardEnums() -> String {
+        // Check if we already have a SaveOptions or similar enum in the SDEF
+        let hasExistingSaveOptions = model.suites.contains { suite in
+            suite.enumerations.contains { enumeration in
+                let enumName = swiftClassName(enumeration.name)
+                return enumName.lowercased().contains("saveoptions") ||
+                       enumName.lowercased() == "savo" ||
+                       enumeration.name.lowercased().contains("save options")
+            }
+        }
+
+        if hasExistingSaveOptions {
+            // Don't generate the standard SaveOptions if one already exists
+            return ""
+        }
+
+        return """
+
+            // MARK: - Save Options
+
+            /// Standard save options for dialogs
+            @objc public enum SaveOptions: AEKeyword {
+                case yes = 0x79657320  // 'yes '
+                case no = 0x6e6f2020   // 'no  '
+                case ask = 0x61736b20  // 'ask '
+            }
+
+        """
+    }
+
+    private func generateNamespacedTypeAliases() -> String {
+        // Don't generate typealias for Application if there's also an Application protocol
+        let hasApplicationClass = model.suites.flatMap { $0.classes }.contains { $0.name.lowercased() == "application" }
+
+        var aliases = """
+
+            // MARK: - Type Aliases
+
+        """
+
+        if !hasApplicationClass {
+            aliases += "    public typealias Application = SBApplication\n"
+        }
+
+        aliases += """
+            public typealias Object = SBObject
+            public typealias ElementArray = SBElementArray
+
+        """
+        return aliases
+    }
+
+    private func generateNamespacedClassNamesEnum() -> String {
+        var code = """
+
+            // MARK: - Scripting Class Names
+
+            /// An enumeration of all scripting class names defined in the SDEF.
+            ///
+            /// These string constants can be used when working with the Scripting Bridge
+            /// to reference specific scriptable classes by name.
+            public enum ClassNames {
+        """
+
+        // Collect all class names
+        var classNames: Set<String> = []
+
+        // Add standard classes
+        for standardClass in model.standardClasses {
+            classNames.insert(standardClass.name)
+        }
+
+        // Add regular classes
+        for suite in model.suites {
+            for sdefClass in suite.classes {
+                classNames.insert(sdefClass.name)
+            }
+        }
+
+        // Sort for consistent output
+        let sortedNames = classNames.sorted()
+
+        for className in sortedNames {
+            let caseName = swiftPropertyName(className).replacingOccurrences(of: " ", with: "")
+            let escapedName = escapeReservedKeyword(caseName)
+            code += "\n        public static let \(escapedName) = \"\(className)\""
+        }
+
+        code += "\n    }\n"
+        return code
+    }
+
+    private func generateNamespacedEnumeration(_ enumeration: SDEFEnumeration) -> String {
+        let enumName = swiftClassName(enumeration.name)
+
+        var code = """
+
+            // MARK: - \(enumeration.name)
+
+        """
+
+        if let description = enumeration.description {
+            code += "    /// \(description.capitalizingFirstLetter())\n"
+        }
+
+        code += "    @objc public enum \(enumName): AEKeyword {\n"
+
+        for enumerator in enumeration.enumerators {
+            if let description = enumerator.description {
+                code += "        /// \(description.capitalizingFirstLetter())\n"
+            }
+
+            let caseName = swiftCaseName(enumerator.name)
+            let codeValue = formatEnumeratorCode(enumerator.code)
+            code += "        case \(caseName) = \(codeValue)\n"
+        }
+
+        code += "    }\n"
+
+        return code
+    }
+
+    private func generatePrefixedTypealiasesSection() -> String {
+        var code = """
+
+        // MARK: - Prefixed Type Aliases (for backward compatibility)
+
+        """
+
+        // Type aliases for common types
+        let hasApplicationClass = model.suites.flatMap { $0.classes }.contains { $0.name.lowercased() == "application" }
+
+        if !hasApplicationClass {
+            code += "public typealias \(baseName)Application = \(baseName).Application\n"
+        }
+
+        code += """
+        public typealias \(baseName)Object = \(baseName).Object
+        public typealias \(baseName)ElementArray = \(baseName).ElementArray
+
+        """
+
+        // Check if we should generate SaveOptions typealias
+        let hasExistingSaveOptions = model.suites.contains { suite in
+            suite.enumerations.contains { enumeration in
+                let enumName = swiftClassName(enumeration.name)
+                return enumName.lowercased().contains("saveoptions") ||
+                       enumName.lowercased() == "savo" ||
+                       enumeration.name.lowercased().contains("save options")
+            }
+        }
+
+        if !hasExistingSaveOptions {
+            code += "public typealias \(baseName)SaveOptions = \(baseName).SaveOptions\n"
+        }
+
+        code += "\n"
+
+        // Enumerations - avoid duplicates
+        var generatedTypealiases = Set<String>()
+        for suite in model.suites {
+            for enumeration in suite.enumerations {
+                let enumName = swiftClassName(enumeration.name)
+                let typealiasName = "\(baseName)\(enumName)"
+                if !generatedTypealiases.contains(typealiasName) {
+                    code += "public typealias \(typealiasName) = \(baseName).\(enumName)\n"
+                    generatedTypealiases.insert(typealiasName)
+                }
+            }
+        }
+
+        return code + "\n"
+    }
+
+    private func generateFlatTypealiasesSection() -> String {
+        var code = """
+
+        // MARK: - Flat Type Aliases (for use as a separate module)
+
+        """
+
+        // Type aliases for common types
+        let hasApplicationClass = model.suites.flatMap { $0.classes }.contains { $0.name.lowercased() == "application" }
+
+        if !hasApplicationClass {
+            code += "public typealias Application = \(baseName).Application\n"
+        }
+
+        code += """
+        public typealias Object = \(baseName).Object
+        public typealias ElementArray = \(baseName).ElementArray
+
+        """
+
+        // Check if we should generate SaveOptions typealias
+        let hasExistingSaveOptions = model.suites.contains { suite in
+            suite.enumerations.contains { enumeration in
+                let enumName = swiftClassName(enumeration.name)
+                return enumName.lowercased().contains("saveoptions") ||
+                       enumName.lowercased() == "savo" ||
+                       enumeration.name.lowercased().contains("save options")
+            }
+        }
+
+        if !hasExistingSaveOptions {
+            code += "public typealias SaveOptions = \(baseName).SaveOptions\n"
+        }
+
+        code += "\n"
+
+        // Enumerations - avoid duplicates
+        var generatedTypealiases = Set<String>()
+        for suite in model.suites {
+            for enumeration in suite.enumerations {
+                let enumName = swiftClassName(enumeration.name)
+                if !generatedTypealiases.contains(enumName) {
+                    code += "public typealias \(enumName) = \(baseName).\(enumName)\n"
+                    generatedTypealiases.insert(enumName)
+                }
+            }
+        }
+
+        return code + "\n"
+    }
+
     private func generateClassNamesEnum() -> String {
         var classNames = Set<String>()
 
