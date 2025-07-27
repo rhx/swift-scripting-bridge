@@ -26,6 +26,7 @@ public final class SDEFSwiftCodeGenerator {
     private let shouldGenerateStronglyTypedExtensions: Bool
     private let generatePrefixedTypealiases: Bool
     private let generateFlatTypealiases: Bool
+    private let bundleIdentifier: String?
     private let isIncludedFile: Bool
     private let verbose: Bool
     private lazy var enumerationNames: Set<String> = {
@@ -53,15 +54,17 @@ public final class SDEFSwiftCodeGenerator {
     ///   - shouldGenerateStronglyTypedExtensions: Whether to generate strongly typed accessor extensions
     ///   - generatePrefixedTypealiases: Whether to generate prefixed typealiases for backward compatibility
     ///   - generateFlatTypealiases: Whether to generate flat (unprefixed) typealiases
+    ///   - bundleIdentifier: Optional bundle identifier for generating application() convenience function
     ///   - isIncludedFile: Whether this is an included file (skips foundation protocols)
     ///   - verbose: Whether to enable detailed logging during code generation
-    public init(model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, generatePrefixedTypealiases: Bool = false, generateFlatTypealiases: Bool = false, isIncludedFile: Bool = false, verbose: Bool) {
+    public init(model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, generatePrefixedTypealiases: Bool = false, generateFlatTypealiases: Bool = false, bundleIdentifier: String? = nil, isIncludedFile: Bool = false, verbose: Bool) {
         self.model = model
         self.baseName = basename
         self.shouldGenerateClassNamesEnum = shouldGenerateClassNamesEnum
         self.shouldGenerateStronglyTypedExtensions = shouldGenerateStronglyTypedExtensions
         self.generatePrefixedTypealiases = generatePrefixedTypealiases
         self.generateFlatTypealiases = generateFlatTypealiases
+        self.bundleIdentifier = bundleIdentifier
         self.isIncludedFile = isIncludedFile
         self.verbose = verbose
     }
@@ -254,6 +257,11 @@ public final class SDEFSwiftCodeGenerator {
             for classExtension in suite.classExtensions {
                 code += generateNamespacedClassExtensionProtocol(classExtension, suite: suite)
             }
+        }
+
+        // Generate application() convenience function if bundle identifier is provided
+        if let bundleIdentifier = bundleIdentifier {
+            code += generateApplicationFunction(bundleIdentifier: bundleIdentifier)
         }
 
         // Close namespace enum
@@ -849,6 +857,31 @@ public typealias \(baseName)ElementArray = SBElementArray
             @objc optional func windows() -> SBElementArray
         }
 
+        """
+    }
+
+    private func generateApplicationFunction(bundleIdentifier: String) -> String {
+        // Check if the SDEF model defines an Application class
+        let hasApplicationClass = model.suites.contains { suite in
+            suite.classes.contains { sdefClass in
+                sdefClass.name.lowercased() == "application"
+            }
+        }
+
+        guard hasApplicationClass else {
+            // If there's no Application class defined, don't generate the function
+            return ""
+        }
+
+        return """
+
+            // MARK: - Application Convenience Function
+
+            /// Creates an instance of the application using its bundle identifier.
+            /// - Returns: An optional Application instance if the application is available
+            public static func application() -> \(baseName).Application! {
+                SBApplication(bundleIdentifier: "\(bundleIdentifier)") as? \(baseName).Application
+            }
         """
     }
 

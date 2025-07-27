@@ -34,6 +34,7 @@ Scripting Bridge framework.
 - **Recursive Generation**: Optionally generates separate files for included SDEF files (e.g., CocoaStandard.sdef)
 - **Strongly Typed Extensions**: Generates typed accessor extensions for element arrays
 - **Class Names Enumeration**: Optional generation of scripting class names enum
+- **Bundle Identifier Support**: Generates convenience `application()` function when bundle ID is provided
 
 ### Installation
 
@@ -64,6 +65,7 @@ ARGUMENTS:
 OPTIONS:
   -o, --output-directory  Output directory (default: current directory)
   -b, --basename         Base name for generated files (default: derived from sdef filename)
+  -B, --bundle           Bundle identifier for the application. When provided, generates an application() convenience function
   -i, --include-hidden   Include hidden definitions marked in the sdef
   -v, --verbose          Enable verbose output
   -r, --recursive        Recursively generate separate Swift files for included SDEF files
@@ -101,6 +103,20 @@ sdef2swift /Applications/Safari.app/Contents/Resources/Safari.sdef
 Generate with custom output directory and base name:
 ```bash
 sdef2swift Safari.sdef --output-directory ./Generated --basename SafariScripting
+```
+
+Generate with bundle identifier for convenience function:
+```bash
+sdef2swift Music.sdef --bundle com.apple.Music --basename Music
+```
+
+This generates an `application()` function that simplifies app initialization:
+```swift
+// Instead of:
+let app: Music.Application? = SBApplication(bundleIdentifier: "com.apple.Music")
+
+// You can use:
+let app = Music.application()
 ```
 
 ##### Search Path Examples
@@ -275,7 +291,7 @@ When you run `swift build`, the plugin will:
 1. Scan your target for `.sdef` and `.sdefstub` files
 2. For each file:
    - If `.sdefstub`: Use search paths to find the real `.sdef` file
-   - If empty `.sdef`: Use search paths to find the real `.sdef` file  
+   - If empty `.sdef`: Use search paths to find the real `.sdef` file
    - If symlink: Follow the symlink to the target file
    - If regular file: Use the file content directly
 3. Generate corresponding Swift interfaces (e.g., `Notes.sdefstub` → `Notes.swift`)
@@ -336,7 +352,7 @@ struct NotesMain {
         print("Got \(app.notes.count) notes")
         guard let firstNote = app.notes.first else { return }
         print("First note: " + (firstNote.name ?? "<unnamed>"))
-        
+
         // Swift-style property names (from Cocoa keys)
         if let isShared = firstNote.isShared {
             print("Swift style - isShared: \(isShared)")
@@ -344,15 +360,15 @@ struct NotesMain {
         if let body = firstNote.scriptingBody {
             print("Swift style - scriptingBody: \(body.prefix(50))...")
         }
-        
-        // Objective-C style property names (from SDEF names) 
+
+        // Objective-C style property names (from SDEF names)
         if let shared = firstNote.shared {
             print("Objective-C style - shared: \(shared)")
         }
         if let body = firstNote.body {
             print("Objective-C style - body: \(body.prefix(50))...")
         }
-        
+
         if !(app.isActive ?? false) {
             app.activate()
         }

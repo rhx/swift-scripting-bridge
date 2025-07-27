@@ -28,6 +28,7 @@ public final class SDEFSwiftGenerator {
     private let shouldGenerateRecursively: Bool
     private let generatePrefixedTypealiases: Bool
     private let generateFlatTypealiases: Bool
+    private let bundleIdentifier: String?
     private let verbose: Bool
 
     /// Creates a new SDEF Swift generator with the specified configuration.
@@ -47,8 +48,9 @@ public final class SDEFSwiftGenerator {
     ///   - shouldGenerateRecursively: Whether to recursively generate files for included SDEF files
     ///   - generatePrefixedTypealiases: Whether to generate prefixed typealiases for backward compatibility
     ///   - generateFlatTypealiases: Whether to generate flat (unprefixed) typealiases
+    ///   - bundleIdentifier: Optional bundle identifier for generating application() convenience function
     ///   - verbose: Whether to provide detailed logging during the generation process
-    public init(sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool, generateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, shouldGenerateRecursively: Bool, generatePrefixedTypealiases: Bool = false, generateFlatTypealiases: Bool = false, verbose: Bool) {
+    public init(sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool, generateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, shouldGenerateRecursively: Bool, generatePrefixedTypealiases: Bool = false, generateFlatTypealiases: Bool = false, bundleIdentifier: String? = nil, verbose: Bool) {
         self.sdefURL = sdefURL
         self.basename = basename
         self.outputDirectory = outputDirectory
@@ -58,6 +60,7 @@ public final class SDEFSwiftGenerator {
         self.shouldGenerateRecursively = shouldGenerateRecursively
         self.generatePrefixedTypealiases = generatePrefixedTypealiases
         self.generateFlatTypealiases = generateFlatTypealiases
+        self.bundleIdentifier = bundleIdentifier
         self.verbose = verbose
     }
 
@@ -110,7 +113,7 @@ public final class SDEFSwiftGenerator {
         }
 
         // Generate Swift code
-        let codeGenerator = SDEFSwiftCodeGenerator(model: sdefModel, basename: basename, shouldGenerateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions, generatePrefixedTypealiases: generatePrefixedTypealiases, generateFlatTypealiases: generateFlatTypealiases, verbose: verbose)
+        let codeGenerator = SDEFSwiftCodeGenerator(model: sdefModel, basename: basename, shouldGenerateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions, generatePrefixedTypealiases: generatePrefixedTypealiases, generateFlatTypealiases: generateFlatTypealiases, bundleIdentifier: bundleIdentifier, verbose: verbose)
         let swiftCode: String
         do {
             swiftCode = try codeGenerator.generateCode()
