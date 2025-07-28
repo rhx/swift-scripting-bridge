@@ -3,8 +3,7 @@ import ScriptingBridge
 import NotesScripting // rhx/swift-scripting-bridge ~> main
 import Foundation
 
-let app: Notes.Application? = SBApplication(bundleIdentifier: "com.apple.Notes")
-guard let app else { fatalError("Could not access Notes") }
+guard let app = Notes.application else { fatalError("Could not access Notes") }
 
 print("📝 Notes App Overview")
 print("═════════════════════")
@@ -83,18 +82,18 @@ if totalNotes > maxNotesToShow {
 let searchTerm = "Swift"
 print("\n🔍 Notes containing '\(searchTerm)':")
 
-var foundNotes = 0
+var foundNotesCount = 0
 for note in app.notes {
     if (note.body ?? "").localizedCaseInsensitiveContains(searchTerm) {
         let title = note.name ?? "Untitled Note"
         print("   • \(title)")
-        foundNotes += 1
-        if foundNotes >= 5 { break } // Limit search results
+        foundNotesCount += 1
+        if foundNotesCount >= 5 { break } // Limit search results
     }
 }
 
-if foundNotes == 0 {
+if foundNotesCount == 0 {
     print("   No notes found containing '\(searchTerm)'")
-} else if foundNotes >= 5 {
+} else if foundNotesCount >= 5 {
     print("   ... and potentially more (showing first 5)")
 }

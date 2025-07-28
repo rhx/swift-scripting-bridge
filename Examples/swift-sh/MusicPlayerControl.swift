@@ -2,8 +2,7 @@
 import ScriptingBridge
 import MusicScripting // rhx/swift-scripting-bridge ~> main
 
-let app: Music.Application? = SBApplication(bundleIdentifier: "com.apple.Music")
-guard let app else { fatalError("Could not access the Music app") }
+guard let app = Music.application else { fatalError("Could not access the Music app") }
 
 // Check if Music is running and show current status
 if !app.isRunning {

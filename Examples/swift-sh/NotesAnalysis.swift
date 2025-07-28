@@ -3,8 +3,7 @@ import ScriptingBridge
 import NotesScripting // rhx/swift-scripting-bridge ~> main
 import Foundation
 
-let app: Notes.Application? = SBApplication(bundleIdentifier: "com.apple.Notes")
-guard let app else { fatalError("Could not access Notes") }
+guard let app = Notes.application else { fatalError("Could not access Notes") }
 
 print("📝 Notes App Analysis")
 print("═════════════════════")

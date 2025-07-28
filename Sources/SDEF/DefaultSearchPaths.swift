@@ -2,8 +2,8 @@
 // DefaultSearchPaths.swift
 // SDEF
 //
-// Created for shared use between sdef2swift and GenerateScriptingInterface plugin.
-// Copyright © 2025 Rene Hexel. All rights reserved.
+// Created by Rene Hexel on 1/06/2024.
+// Copyright © 2024, 2025 Rene Hexel. All rights reserved.
 //
 import Foundation
 
