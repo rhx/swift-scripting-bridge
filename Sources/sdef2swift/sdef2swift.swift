@@ -67,6 +67,10 @@ struct SDEFToSwift: AsyncParsableCommand {
     @Flag(name: .shortAndLong, help: "Enable verbose output")
     var verbose = false
 
+    /// Whether to enable debug output
+    @Flag(name: .shortAndLong, help: "Enable debug output")
+    var debug = false
+
     /// Whether to generate class names enum
     @Flag(name: [.customShort("e", allowingJoined: true), .long], inversion: .prefixedNo, help: "Generate a public enum of scripting class names")
     var generateClassNamesEnum = true
@@ -143,7 +147,7 @@ struct SDEFToSwift: AsyncParsableCommand {
         }
 
         do {
-            let generator = SDEFSwiftGenerator(sdefURL: sdefURL, basename: finalBasename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: generateStronglyTypedExtensions, shouldGenerateRecursively: recursive, generatePrefixedTypealiases: prefixed, generateFlatTypealiases: flat, bundleIdentifier: finalBundle, verbose: verbose)
+            let generator = SDEFSwiftGenerator(sdefURL: sdefURL, basename: finalBasename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: generateStronglyTypedExtensions, shouldGenerateRecursively: recursive, generatePrefixedTypealiases: prefixed, generateFlatTypealiases: flat, bundleIdentifier: finalBundle, verbose: verbose, debug: debug)
             let outputURL = try await generator.generate()
             print("Generated Swift file: \(outputURL.path)")
 

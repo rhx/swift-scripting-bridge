@@ -347,10 +347,18 @@ private extension SDEFParser {
         let code = element.attribute(forName: "code")?.stringValue ?? ""
         let description = element.attribute(forName: "description")?.stringValue
 
+        if verbose {
+            print("Parsing suite: \(name)")
+        }
+
         let classes = try parseClasses(from: element)
         let enumerations = try parseEnumerations(from: element)
         let commands = try parseCommands(from: element)
         let classExtensions = try parseClassExtensions(from: element)
+
+        if verbose {
+            print("Suite '\(name)' has \(commands.count) commands")
+        }
 
         return SDEFSuite(
             name: name,
@@ -586,8 +594,13 @@ private extension SDEFParser {
     }
 
     func parseCommands(from element: XMLElement) throws -> [SDEFCommand] {
-        let commandElements = try element.nodes(forXPath: ".//command")
+        // Commands are direct children of suite, not nested deeper
+        let commandElements = try element.nodes(forXPath: "./command")
         var commands: [SDEFCommand] = []
+
+        if verbose {
+            print("Found \(commandElements.count) command elements in suite")
+        }
 
         for commandNode in commandElements {
             guard let commandElement = commandNode as? XMLElement else { continue }
@@ -597,6 +610,10 @@ private extension SDEFParser {
 
             let command = try parseCommand(from: commandElement)
             commands.append(command)
+
+            if verbose {
+                print("  - Parsed command: \(command.name)")
+            }
         }
 
         return commands

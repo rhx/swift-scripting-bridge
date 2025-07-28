@@ -30,6 +30,7 @@ public final class SDEFSwiftGenerator {
     private let generateFlatTypealiases: Bool
     private let bundleIdentifier: String?
     private let verbose: Bool
+    private let debug: Bool
 
     /// Creates a new SDEF Swift generator with the specified configuration.
     ///
@@ -50,7 +51,8 @@ public final class SDEFSwiftGenerator {
     ///   - generateFlatTypealiases: Whether to generate flat (unprefixed) typealiases
     ///   - bundleIdentifier: Optional bundle identifier for generating application() convenience function
     ///   - verbose: Whether to provide detailed logging during the generation process
-    public init(sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool, generateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, shouldGenerateRecursively: Bool, generatePrefixedTypealiases: Bool = false, generateFlatTypealiases: Bool = false, bundleIdentifier: String? = nil, verbose: Bool) {
+    ///   - debug: Whether to provide debug logging during the generation process
+    public init(sdefURL: URL, basename: String, outputDirectory: String, includeHidden: Bool, generateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, shouldGenerateRecursively: Bool, generatePrefixedTypealiases: Bool = false, generateFlatTypealiases: Bool = false, bundleIdentifier: String? = nil, verbose: Bool, debug: Bool = false) {
         self.sdefURL = sdefURL
         self.basename = basename
         self.outputDirectory = outputDirectory
@@ -62,6 +64,7 @@ public final class SDEFSwiftGenerator {
         self.generateFlatTypealiases = generateFlatTypealiases
         self.bundleIdentifier = bundleIdentifier
         self.verbose = verbose
+        self.debug = debug
     }
 
     /// Generates Swift code from the SDEF file and writes it to the output directory.
@@ -113,7 +116,13 @@ public final class SDEFSwiftGenerator {
         }
 
         // Generate Swift code
-        let codeGenerator = SDEFSwiftCodeGenerator(model: sdefModel, basename: basename, shouldGenerateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions, generatePrefixedTypealiases: generatePrefixedTypealiases, generateFlatTypealiases: generateFlatTypealiases, bundleIdentifier: bundleIdentifier, verbose: verbose)
+        if verbose {
+            print("Generating Swift code for model with \(sdefModel.suites.count) suites")
+            for suite in sdefModel.suites {
+                print("  Suite '\(suite.name)' has \(suite.commands.count) commands")
+            }
+        }
+        let codeGenerator = SDEFSwiftCodeGenerator(model: sdefModel, basename: basename, shouldGenerateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: shouldGenerateStronglyTypedExtensions, generatePrefixedTypealiases: generatePrefixedTypealiases, generateFlatTypealiases: generateFlatTypealiases, bundleIdentifier: bundleIdentifier, verbose: verbose, debug: debug)
         let swiftCode: String
         do {
             swiftCode = try codeGenerator.generateCode()
@@ -166,7 +175,8 @@ public final class SDEFSwiftGenerator {
                 generatePrefixedTypealiases: generatePrefixedTypealiases,
                 generateFlatTypealiases: false, // Never generate flat typealiases for included files
                 isIncludedFile: true,
-                verbose: verbose
+                verbose: verbose,
+                debug: debug
             )
 
             let includeSwiftCode: String

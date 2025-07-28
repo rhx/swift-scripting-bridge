@@ -29,6 +29,7 @@ public final class SDEFSwiftCodeGenerator {
     private let bundleIdentifier: String?
     private let isIncludedFile: Bool
     private let verbose: Bool
+    private let debug: Bool
     private lazy var enumerationNames: Set<String> = {
         var names = Set<String>()
         for suite in model.suites {
@@ -57,7 +58,8 @@ public final class SDEFSwiftCodeGenerator {
     ///   - bundleIdentifier: Optional bundle identifier for generating application() convenience function
     ///   - isIncludedFile: Whether this is an included file (skips foundation protocols)
     ///   - verbose: Whether to enable detailed logging during code generation
-    public init(model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, generatePrefixedTypealiases: Bool = false, generateFlatTypealiases: Bool = false, bundleIdentifier: String? = nil, isIncludedFile: Bool = false, verbose: Bool) {
+    ///   - debug: Whether to enable debug logging during code generation
+    public init(model: SDEFModel, basename: String, shouldGenerateClassNamesEnum: Bool, shouldGenerateStronglyTypedExtensions: Bool, generatePrefixedTypealiases: Bool = false, generateFlatTypealiases: Bool = false, bundleIdentifier: String? = nil, isIncludedFile: Bool = false, verbose: Bool, debug: Bool = false) {
         self.model = model
         self.baseName = basename
         self.shouldGenerateClassNamesEnum = shouldGenerateClassNamesEnum
@@ -67,6 +69,7 @@ public final class SDEFSwiftCodeGenerator {
         self.bundleIdentifier = bundleIdentifier
         self.isIncludedFile = isIncludedFile
         self.verbose = verbose
+        self.debug = debug
     }
 
     /// Generates complete Swift source code from the SDEF model.
@@ -95,6 +98,9 @@ public final class SDEFSwiftCodeGenerator {
 
         """
 
+        // Check if we have a Standard Suite in the SDEF
+        let hasStandardSuite = model.suites.contains { $0.name.lowercased().contains("standard") }
+
         // Generate foundation protocols - always prefixed to avoid conflicts between different SDEF files
         code += """
 
@@ -108,8 +114,17 @@ public final class SDEFSwiftCodeGenerator {
 
         /// Protocol for ScriptingBridge Applications.
         ///
-        /// This protocol defines the basic functionality for ScriptingBridge applications,
-        /// including standard Apple Event commands that most applications support.
+        /// This protocol defines the basic functionality for ScriptingBridge applications
+        """
+
+        if !hasStandardSuite {
+            code += ",\n        /// including standard Apple Event commands that most applications support."
+        } else {
+            code += "."
+        }
+
+        code += """
+
         @objc public protocol \(baseName)SBApplicationProtocol: \(baseName)SBObjectProtocol {
             // MARK: - Core Application Methods
 
@@ -121,6 +136,11 @@ public final class SDEFSwiftCodeGenerator {
 
             /// Whether the application is currently running.
             var isRunning: Bool { get }
+        """
+
+        // Only add hard-coded standard commands if there's no Standard Suite in the SDEF
+        if !hasStandardSuite {
+            code += """
 
             // MARK: - Standard Suite Commands
 
@@ -200,6 +220,37 @@ public final class SDEFSwiftCodeGenerator {
             /// Select the specified object(s).
             /// - Parameter object: The object to select
             @objc optional func select(_ object: Any!)
+        """
+        } else {
+            // If we have a Standard Suite, add parsed commands from all suites
+            if debug {
+                print("DEBUG: Adding parsed commands from all suites to SBApplicationProtocol")
+            }
+
+            // Group commands by suite for organization
+            for suite in model.suites {
+                if !suite.commands.isEmpty {
+                    code += "\n\n    // MARK: - \(suite.name) Commands\n"
+                    if debug {
+                        print("DEBUG: Adding \(suite.commands.count) commands from suite '\(suite.name)'")
+                    }
+
+                    for command in suite.commands {
+                        if debug {
+                            print("DEBUG: Generating command: \(command.name)")
+                        }
+                        let commandCode = generateCommand(command)
+                        if debug && command.name == "print" {
+                            print("DEBUG: Generated print command code: \(commandCode)")
+                        }
+                        code += "\n" + commandCode
+                    }
+                }
+            }
+        }
+
+        code += """
+
         }
         extension SBApplication: \(baseName)SBApplicationProtocol {}
 
@@ -663,6 +714,38 @@ public typealias \(baseName)ElementArray = SBElementArray
             }
         }
 
+        // Add suite commands to Application class
+        if sdefClass.name.lowercased() == "application" {
+            if debug {
+                print("DEBUG: Generating commands for Application class")
+                print("DEBUG: Model has \(model.suites.count) suites")
+            }
+            // Add commands from all suites
+            for modelSuite in model.suites {
+                if debug {
+                    print("DEBUG: Suite '\(modelSuite.name)' has \(modelSuite.commands.count) commands")
+                }
+                if !modelSuite.commands.isEmpty {
+                    if debug {
+                        print("DEBUG: Adding commands section for \(modelSuite.name)")
+                    }
+                    code += "\n        // MARK: - \(modelSuite.name) Commands\n"
+                    for command in modelSuite.commands {
+                        if debug {
+                            print("DEBUG: Adding command: \(command.name)")
+                        }
+                        let commandCode = generateCommand(command)
+                        if debug {
+                            print("DEBUG: Generated command code: \(commandCode)")
+                        }
+                        code += commandCode
+                    }
+                } else if debug {
+                    print("DEBUG: No commands to add for \(modelSuite.name)")
+                }
+            }
+        }
+
         code += "    }\n"
 
         return code
@@ -835,7 +918,15 @@ public typealias \(baseName)ElementArray = SBElementArray
         // Always use prefixed base protocol to avoid conflicts between different SDEF files
         let applicationBaseProtocol = "\(baseName)SBApplicationProtocol"
 
-        return """
+        if debug {
+            print("DEBUG: generateApplicationProtocol called for \(baseName)")
+            print("DEBUG: Model has \(model.suites.count) suites")
+            for suite in model.suites {
+                print("DEBUG: Suite '\(suite.name)' has \(suite.commands.count) commands")
+            }
+        }
+
+        var code = """
 
         // MARK: - Generic Methods Protocol
 
@@ -855,9 +946,27 @@ public typealias \(baseName)ElementArray = SBElementArray
             @objc optional func documents() -> SBElementArray
             /// Array of window objects - A window.
             @objc optional func windows() -> SBElementArray
+        """
+
+        // Add commands from all suites
+        for suite in model.suites {
+            if debug {
+                print("DEBUG: Processing suite '\(suite.name)' with \(suite.commands.count) commands")
+            }
+            if !suite.commands.isEmpty {
+                code += "\n    // MARK: - \(suite.name) Commands\n"
+                for command in suite.commands {
+                    if debug {
+                        print("DEBUG: Generating command: \(command.name)")
+                    }
+                    code += generateCommand(command)
+                }
+            }
         }
 
-        """
+        code += "}\n\n"
+
+        return code
     }
 
     private func generateApplicationFunction(bundleIdentifier: String) -> String {
@@ -898,6 +1007,106 @@ public typealias \(baseName)ElementArray = SBElementArray
     }
 
     // MARK: - Helper Methods
+
+    private func generateCommand(_ command: SDEFCommand) -> String {
+        var code = ""
+
+        // Add documentation if available
+        if let description = command.description {
+            code += "    /// \(description.capitalizingFirstLetter())\n"
+        }
+
+        // Generate parameter documentation
+        var hasDocParams = false
+        if let directParam = command.directParameter, let description = directParam.description {
+            if !hasDocParams {
+                code += "    /// - Parameters:\n"
+                hasDocParams = true
+            }
+            code += "    ///   - directParameter: \(description.capitalizingFirstLetter())\n"
+        }
+
+        for param in command.parameters {
+            if let description = param.description {
+                if !hasDocParams {
+                    code += "    /// - Parameters:\n"
+                    hasDocParams = true
+                }
+                let paramName = param.name ?? "parameter"
+                code += "    ///   - \(swiftParameterName(paramName)): \(description.capitalizingFirstLetter())\n"
+            }
+        }
+
+        if command.result != nil {
+            code += "    /// - Returns: The command result\n"
+        }
+
+        // Generate method signature
+        code += "    @objc optional func \(swiftMethodName(command.name))("
+
+        var paramStrings: [String] = []
+
+        // Add direct parameter if present
+        if let directParam = command.directParameter {
+            let paramType = swiftType(for: directParam.type)
+            if directParam.isOptional {
+                // Optional direct parameters should be marked as optional for object types
+                if paramType.contains("SBObject") || paramType.contains("URL") || paramType.contains("[") || paramType.contains("Any") {
+                    paramStrings.append("_ directParameter: \(paramType)?")
+                } else {
+                    // For non-object types, avoid optionals for @objc compatibility
+                    paramStrings.append("_ directParameter: \(paramType)")
+                }
+            } else {
+                paramStrings.append("_ directParameter: \(paramType)")
+            }
+        }
+
+        // Add named parameters
+        for param in command.parameters {
+            if let paramName = param.name {
+                let swiftParamName = swiftParameterName(paramName)
+                let paramType = swiftType(for: param.type)
+                if param.isOptional {
+                    // For optional parameters, only make object types optional to avoid @objc issues
+                    if paramType.contains("SBObject") || paramType.contains("URL") || paramType.contains("[") || paramType.contains("Any") {
+                        paramStrings.append("\(swiftParamName): \(paramType)?")
+                    } else {
+                        // For value types like Bool, String, enums, provide defaults or keep non-optional
+                        paramStrings.append("\(swiftParamName): \(paramType)")
+                    }
+                } else {
+                    paramStrings.append("\(swiftParamName): \(paramType)")
+                }
+            }
+        }
+
+        code += paramStrings.joined(separator: ", ")
+        code += ")"
+
+        // Add return type if present
+        if let result = command.result {
+            let returnType = swiftType(for: result)
+            code += " -> \(returnType)"
+        }
+
+        code += "\n"
+
+        return code
+    }
+
+    private func swiftParameterName(_ name: String) -> String {
+        // Convert parameter names to Swift convention
+        let components = name.split(separator: " ")
+        if components.isEmpty { return name }
+
+        var result = String(components[0]).lowercased()
+        for component in components.dropFirst() {
+            result += component.capitalized
+        }
+
+        return escapeReservedKeyword(result)
+    }
 
     private func swiftType(for propertyType: SDEFPropertyType) -> String {
         var baseType = swiftTypeName(propertyType.baseType)
@@ -984,14 +1193,21 @@ public typealias \(baseName)ElementArray = SBElementArray
         case "double integer":
             return "Int64"
         default:
+            // Check if it's a known record-type first (record-types aren't parsed yet)
+            let knownRecordTypes = ["print settings", "RGB color", "location reference"]
+            if knownRecordTypes.contains(objcType.lowercased()) {
+                // It's a record type - use dictionary
+                return "[String: Any]"
+            }
+
             // Check if it's an enumeration type
             let cleanType = swiftClassName(objcType)
             if enumerationNames.contains(cleanType) {
                 // It's an enum - use namespace
                 return "\(baseName).\(cleanType)"
             } else {
-                // It's a class name - use protocol name
-                return "\(baseName)\(cleanType)"
+                // It's a class name - use namespaced protocol name
+                return "\(baseName).\(cleanType)"
             }
         }
     }
