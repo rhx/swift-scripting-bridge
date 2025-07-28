@@ -881,7 +881,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             ///
             /// This property creates an instance of the application using its bundle identifier
             /// and returns an optional Application instance if the application is available
-            public static : \(baseName).Application! {
+            public static var application: \(baseName).Application! {
                 SBApplication(bundleIdentifier: "\(bundleIdentifier)")
             }
         """
