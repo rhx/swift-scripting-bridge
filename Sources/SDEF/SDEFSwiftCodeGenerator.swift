@@ -256,8 +256,12 @@ public final class SDEFSwiftCodeGenerator {
 
         """
 
+
         // Generate standard protocols and enums first (outside namespace)
         code += generateApplicationProtocol()
+
+        // Generate convenience methods for application protocol (after protocol definition)
+        code += generateApplicationProtocolConvenienceMethods()
 
         // Start namespace enum
         code += "\n\n// MARK: - \(baseName) Namespace\n\n"
@@ -438,10 +442,10 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         var inheritanceList: [String]
 
-        // Application classes should inherit from SBApplicationProtocol, others from SBObjectProtocol
+        // Application classes should inherit from ApplicationProtocol, others from SBObjectProtocol
         // Always use prefixed versions to avoid conflicts between different SDEF files
         if sdefClass.name.lowercased() == "application" {
-            inheritanceList = ["\(baseName)SBApplicationProtocol"]
+            inheritanceList = ["\(baseName)ApplicationProtocol"]
         } else {
             inheritanceList = ["\(baseName)SBObjectProtocol"]
         }
@@ -621,10 +625,10 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         var inheritanceList: [String]
 
-        // Application classes should inherit from SBApplicationProtocol, others from SBObjectProtocol
+        // Application classes should inherit from ApplicationProtocol, others from SBObjectProtocol
         // Use prefixed versions from outside the namespace
         if sdefClass.name.lowercased() == "application" {
-            inheritanceList = ["\(baseName)SBApplicationProtocol"]
+            inheritanceList = ["\(baseName)ApplicationProtocol"]
         } else {
             inheritanceList = ["\(baseName)SBObjectProtocol"]
         }
@@ -1008,6 +1012,167 @@ public typealias \(baseName)ElementArray = SBElementArray
 
     // MARK: - Helper Methods
 
+    private func generateApplicationProtocolConvenienceMethods() -> String {
+        var code = "\n// MARK: - \(baseName)ApplicationProtocol Convenience Methods\n\n"
+        code += "public extension \(baseName)ApplicationProtocol {\n"
+
+        // Collect all commands from all suites for the application
+        for suite in model.suites {
+            if !suite.commands.isEmpty {
+                code += "\n    // MARK: \(suite.name) Commands\n"
+
+                for command in suite.commands {
+                    code += generateConvenienceMethod(for: command)
+                }
+            }
+        }
+
+        code += "}\n"
+
+        return code
+    }
+
+    private func generateConvenienceMethod(for command: SDEFCommand) -> String {
+        var code = ""
+
+        // Add documentation
+        if let description = command.description {
+            code += "    /// \(description.capitalizingFirstLetter())\n"
+        }
+
+        // Add @inlinable attribute for better performance
+        code += "    @inlinable\n"
+
+        // Generate method signature with original name
+        code += "    func \(swiftMethodName(command.name))("
+
+        var paramStrings: [String] = []
+
+        // Add direct parameter if present
+        if let directParam = command.directParameter {
+            let paramType = swiftType(for: directParam.type)
+            var finalParamType = paramType
+            var shouldHaveDefault = false
+
+            if directParam.isOptional {
+                // Match protocol method logic: only make object types optional
+                if paramType.contains("SBObject") || paramType.contains("URL") || paramType.contains("[") || paramType.contains("Any") {
+                    finalParamType = paramType + "?"
+                    shouldHaveDefault = true
+                }
+                // For value types, keep non-optional but add default if appropriate
+                else {
+                    shouldHaveDefault = true
+                }
+            }
+
+            var paramString = "_ directParameter: \(finalParamType)"
+
+            // Add default value if appropriate
+            if shouldHaveDefault {
+                if finalParamType.hasSuffix("?") {
+                    paramString += " = nil"
+                } else if paramType.lowercased() == "bool" {
+                    paramString += " = false"
+                }
+            }
+
+            paramStrings.append(paramString)
+        }
+
+        // Add named parameters
+        for param in command.parameters {
+            if let paramName = param.name {
+                let swiftParamName = swiftParameterName(paramName)
+                let paramType = swiftType(for: param.type)
+                var finalParamType = paramType
+                var shouldHaveDefault = false
+
+                if param.isOptional {
+                    // Match protocol method logic: only make object types optional
+                    if paramType.contains("SBObject") || paramType.contains("URL") || paramType.contains("[") || paramType.contains("Any") {
+                        finalParamType = paramType + "?"
+                        shouldHaveDefault = true
+                    }
+                    // For value types, keep non-optional but add default if appropriate
+                    else {
+                        shouldHaveDefault = true
+                    }
+                }
+
+                var paramString = "\(swiftParamName): \(finalParamType)"
+
+                // Add default value if appropriate
+                if shouldHaveDefault {
+                    if finalParamType.hasSuffix("?") {
+                        paramString += " = nil"
+                    } else if paramType.lowercased() == "bool" {
+                        paramString += " = false"
+                    }
+                }
+
+                paramStrings.append(paramString)
+            }
+        }
+
+        code += paramStrings.joined(separator: ", ")
+        code += ")"
+
+        // Add return type if present
+        if let result = command.result {
+            let returnType = swiftType(for: result)
+            code += " -> \(returnType)!"
+        }
+
+        code += " {\n"
+
+        // Generate the method body
+        let methodName = sanitizeCommandCode(command.code)
+        code += "        "
+
+        // For single-line methods, omit the return keyword
+        code += "\(methodName)?("
+
+        // Pass parameters
+        var callParams: [String] = []
+        if let directParam = command.directParameter {
+            let paramType = swiftType(for: directParam.type)
+
+            // Only force unwrap if the convenience method parameter is actually optional (ends with ?)
+            if directParam.isOptional && (paramType.contains("SBObject") || paramType.contains("URL") || paramType.contains("[") || paramType.contains("Any")) {
+                // These types are optional in both protocol and convenience methods, so need force unwrapping
+                callParams.append("directParameter")
+            } else {
+                // Non-optional in convenience method, pass directly
+                callParams.append("directParameter")
+            }
+        }
+
+        for param in command.parameters {
+            if let paramName = param.name {
+                let swiftParamName = swiftParameterName(paramName)
+                let objcParamName = objcParameterName(paramName)
+                let paramType = swiftType(for: param.type)
+
+                // Only force unwrap if the convenience method parameter is actually optional (ends with ?)
+                if param.isOptional && (paramType.contains("SBObject") || paramType.contains("URL") || paramType.contains("[") || paramType.contains("Any")) {
+                    // These types are optional in both protocol and convenience methods, so pass directly
+                    callParams.append("\(objcParamName): \(swiftParamName)")
+                } else {
+                    // Non-optional in convenience method, pass directly
+                    callParams.append("\(objcParamName): \(swiftParamName)")
+                }
+            }
+        }
+
+        code += callParams.joined(separator: ", ")
+        code += ")\n"
+
+        code += "    }\n\n"
+
+        return code
+    }
+
     private func generateCommand(_ command: SDEFCommand) -> String {
         var code = ""
 
@@ -1041,8 +1206,10 @@ public typealias \(baseName)ElementArray = SBElementArray
             code += "    /// - Returns: The command result\n"
         }
 
-        // Generate method signature
-        code += "    @objc optional func \(swiftMethodName(command.name))("
+        // Generate method signature with code as method name and proper @objc selector
+        let methodName = sanitizeCommandCode(command.code)
+        let objcSelector = buildObjCSelector(for: command)
+        code += "    @objc(\(objcSelector)) optional func \(methodName)("
 
         var paramStrings: [String] = []
 
@@ -1095,6 +1262,41 @@ public typealias \(baseName)ElementArray = SBElementArray
         return code
     }
 
+    private func sanitizeCommandCode(_ code: String) -> String {
+        // Remove spaces and special characters from the code to make it a valid Swift identifier
+        let sanitized = code.replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "*", with: "Star")
+            .replacingOccurrences(of: "/", with: "Slash")
+            .replacingOccurrences(of: "+", with: "Plus")
+            .replacingOccurrences(of: "-", with: "Minus")
+            .replacingOccurrences(of: ".", with: "Dot")
+
+        // Ensure it starts with a letter or underscore
+        if let first = sanitized.first, !first.isLetter && first != "_" {
+            return "_" + sanitized
+        }
+
+        return sanitized
+    }
+
+    private func buildObjCSelector(for command: SDEFCommand) -> String {
+        var selector = swiftMethodName(command.name)
+
+        // Add parameter labels for the selector
+        if command.directParameter != nil {
+            selector += ":"
+        }
+
+        for param in command.parameters {
+            if let paramName = param.name {
+                let objcParamName = objcParameterName(paramName)
+                selector += "\(objcParamName):"
+            }
+        }
+
+        return selector
+    }
+
     private func swiftParameterName(_ name: String) -> String {
         // Convert parameter names to Swift convention
         let components = name.split(separator: " ")
@@ -1106,6 +1308,33 @@ public typealias \(baseName)ElementArray = SBElementArray
         }
 
         return escapeReservedKeyword(result)
+    }
+
+    private func objcParameterName(_ name: String) -> String {
+        // Convert parameter names to Objective-C selector convention (no backtick escaping)
+        let components = name.split(separator: " ")
+        if components.isEmpty { return name }
+
+        var result = String(components[0]).lowercased()
+        for component in components.dropFirst() {
+            result += component.capitalized
+        }
+
+        return result // No backtick escaping for @objc selectors
+    }
+
+    private func defaultValue(for type: SDEFPropertyType, isOptional: Bool) -> String? {
+        let baseType = type.baseType.lowercased()
+
+        if isOptional {
+            return "nil"
+        } else if baseType == "boolean" {
+            // Non-optional Bool parameters get false as default
+            return "false"
+        }
+
+        // No default for other non-optional types
+        return nil
     }
 
     private func swiftType(for propertyType: SDEFPropertyType) -> String {
