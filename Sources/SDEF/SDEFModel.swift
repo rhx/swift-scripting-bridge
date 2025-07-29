@@ -327,16 +327,21 @@ public struct SDEFPropertyType: Codable {
     /// Whether this property's value can be nil
     public let isOptional: Bool
 
+    /// Optional description of what this property represents
+    public let description: String?
+
     /// Creates a new property type specification.
     ///
     /// - Parameters:
     ///   - baseType: The fundamental data type
     ///   - isList: Whether the property contains a list of values
     ///   - isOptional: Whether the property value can be nil
-    public init(baseType: String, isList: Bool, isOptional: Bool) {
+    ///   - description: Optional description of the property
+    public init(baseType: String, isList: Bool, isOptional: Bool, description: String? = nil) {
         self.baseType = baseType
         self.isList = isList
         self.isOptional = isOptional
+        self.description = description
     }
 }
 

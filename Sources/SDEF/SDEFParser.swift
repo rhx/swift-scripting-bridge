@@ -483,17 +483,19 @@ private extension SDEFParser {
     }
 
     func parsePropertyType(from element: XMLElement) throws -> SDEFPropertyType {
+        let description = element.attribute(forName: "description")?.stringValue
+
         // Try to find type element first
         if let typeElements = try? element.nodes(forXPath: ".//type"),
            let typeElement = typeElements.first as? XMLElement {
             let baseType = typeElement.attribute(forName: "type")?.stringValue ?? "Any"
             let isList = typeElement.attribute(forName: "list")?.stringValue == "yes"
-            return SDEFPropertyType(baseType: baseType, isList: isList, isOptional: true)
+            return SDEFPropertyType(baseType: baseType, isList: isList, isOptional: true, description: description)
         }
 
         // Fallback to type attribute
         let typeAttr = element.attribute(forName: "type")?.stringValue ?? "Any"
-        return SDEFPropertyType(baseType: typeAttr, isList: false, isOptional: true)
+        return SDEFPropertyType(baseType: typeAttr, isList: false, isOptional: true, description: description)
     }
 
     func parseElements(from element: XMLElement) throws -> [SDEFElement] {

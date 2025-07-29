@@ -1040,6 +1040,32 @@ public typealias \(baseName)ElementArray = SBElementArray
             code += "    /// \(description.capitalizingFirstLetter())\n"
         }
 
+        // Generate parameter documentation
+        var hasDocParams = false
+        if let directParam = command.directParameter, let description = directParam.description {
+            if !hasDocParams {
+                code += "    /// - Parameters:\n"
+                hasDocParams = true
+            }
+            code += "    ///   - directParameter: \(description.capitalizingFirstLetter())\n"
+        }
+
+        for param in command.parameters {
+            if let description = param.description {
+                if !hasDocParams {
+                    code += "    /// - Parameters:\n"
+                    hasDocParams = true
+                }
+                let paramName = param.name ?? "parameter"
+                code += "    ///   - \(swiftParameterName(paramName)): \(description.capitalizingFirstLetter())\n"
+            }
+        }
+
+        if let result = command.result {
+            let returnDescription = result.description?.capitalizingFirstLetter() ?? "The command result"
+            code += "    /// - Returns: \(returnDescription)\n"
+        }
+
         // Add @inlinable attribute for better performance
         code += "    @inlinable\n"
 
@@ -1202,8 +1228,9 @@ public typealias \(baseName)ElementArray = SBElementArray
             }
         }
 
-        if command.result != nil {
-            code += "    /// - Returns: The command result\n"
+        if let result = command.result {
+            let returnDescription = result.description?.capitalizingFirstLetter() ?? "The command result"
+            code += "    /// - Returns: \(returnDescription)\n"
         }
 
         // Generate method signature with code as method name and proper @objc selector
