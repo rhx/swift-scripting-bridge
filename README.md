@@ -68,6 +68,7 @@ OPTIONS:
   -B, --bundle           Bundle identifier for the application. When provided, generates an application() convenience function
   -i, --include-hidden   Include hidden definitions marked in the sdef
   -v, --verbose          Enable verbose output
+  -d, --debug            Enable debug output
   -r, --recursive        Recursively generate separate Swift files for included SDEF files
   -e, --generate-class-names-enum/--no-generate-class-names-enum
                          Generate a public enum of scripting class names (default: true)
@@ -134,6 +135,11 @@ sdef2swift --search-path /Applications --search-path /custom/path Safari
 Find apps in custom locations with verbose output:
 ```bash
 sdef2swift --search-path /MyApps:/Applications MyApp --verbose
+```
+
+Generate with debug output for troubleshooting:
+```bash
+sdef2swift --debug Safari
 ```
 
 ##### Manual .sdef extraction
