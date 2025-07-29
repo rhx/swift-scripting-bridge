@@ -1,17 +1,17 @@
-import Foundation
-import ScriptingBridge
-
-let app: Notes.Application? = SBApplication(bundleIdentifier: "com.apple.Notes")
-guard let app else { fatalError("Could not access Notes") }
+guard let app = Notes.application else { fatalError("Could not access Notes") }
 print("Got \(app.notes.count) notes")
-guard let firstNote = app.notes.first else { exit(EXIT_FAILURE)  }
-print("First note: " + (firstNote.name ?? "<unnamed>"))
-let isShared = firstNote.isShared
-print(isShared ? " is shared" : " is not shared")
-print(firstNote.body ?? "")
+if let firstNote = app.notes.first {
+    print("First note: " + (firstNote.name ?? "<unnamed>"))
+    let isShared = firstNote.isShared
+    print(isShared ? " is shared" : " is not shared")
+    print(firstNote.body ?? "")
+}
 if !app.isActive {
     app.activate()
+    app.openNoteLocation("notes://")
 }
+try? await Task.sleep(nanoseconds: 3_000_000_000)
 app.windows.forEach { window in
-    window.closeSaving?(.no, savingIn: nil)
+    window.close()
 }
+app.quit()

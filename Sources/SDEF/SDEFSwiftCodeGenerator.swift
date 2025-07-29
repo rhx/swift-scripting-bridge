@@ -158,11 +158,11 @@ public final class SDEFSwiftCodeGenerator {
             @objc optional func print(_ objects: Any!, withProperties: [String: Any]?)
 
             /// Quit the application.
-            @objc optional func quit()
+            @objc(quit) optional func sbQuit()
 
             /// Close the specified object.
             /// - Parameter object: The object to close
-            @objc optional func close(_ object: Any!)
+            @objc(close:) optional func sbClose(_ object: SBObject?)
 
             /// Return the number of elements of a particular class within an object.
             /// - Parameters:
@@ -181,7 +181,7 @@ public final class SDEFSwiftCodeGenerator {
             /// Move an item from its container to the trash.
             /// - Parameter object: The item to delete
             /// - Returns: The item that was just deleted
-            @objc optional func delete(_ object: Any!) -> Any!
+            @objc(delete:) optional func deleteObject(_ object: Any!) -> Any!
 
             /// Duplicate one or more object(s).
             /// - Parameters:
@@ -191,12 +191,12 @@ public final class SDEFSwiftCodeGenerator {
             ///   - routingSuppressed: Whether to suppress autorouting (optional)
             ///   - exactCopy: Whether to copy permissions/ownership as is (optional)
             /// - Returns: The duplicated object(s)
-            @objc optional func duplicate(_ objects: Any!, to: Any?, replacing: Bool, routingSuppressed: Bool, exactCopy: Bool) -> Any!
+            @objc(duplicate:to:replacing:routingSuppressed:exactCopy:) optional func sbDuplicate(_ objects: Any!, to: Any?, replacing: Bool, routingSuppressed: Bool, exactCopy: Bool) -> Any!
 
             /// Verify if an object exists.
             /// - Parameter object: The object in question
             /// - Returns: True if it exists, false if not
-            @objc optional func exists(_ object: Any!) -> Bool
+            @objc(exists:) optional func sbExists(_ object: Any!) -> Bool
 
             /// Make a new element.
             /// - Parameters:
@@ -215,11 +215,11 @@ public final class SDEFSwiftCodeGenerator {
             ///   - positionedAt: List of positions for destination items (optional)
             ///   - routingSuppressed: Whether to suppress autorouting (optional)
             /// - Returns: The object(s) after they have been moved
-            @objc optional func move(_ objects: Any!, to: Any!, replacing: Bool, positionedAt: [Any]?, routingSuppressed: Bool) -> Any!
+            @objc(move:to:replacing:positionedAt:routingSuppressed:) optional func sbMove(_ objects: Any!, to: Any!, replacing: Bool, positionedAt: [Any]?, routingSuppressed: Bool) -> Any!
 
             /// Select the specified object(s).
             /// - Parameter object: The object to select
-            @objc optional func select(_ object: Any!)
+            @objc(select:) optional func sbSelect(_ object: Any!)
         """
         } else {
             // If we have a Standard Suite, add parsed commands from all suites
@@ -252,6 +252,151 @@ public final class SDEFSwiftCodeGenerator {
         code += """
 
         }
+
+        """
+        if !hasStandardSuite {
+           code += """
+           public extension \(baseName)SBApplicationProtocol {
+               /// Open the specified object(s).
+               ///
+               /// This method opens the specified objects
+               /// using the specified application.
+               ///
+               /// - Parameters:
+               ///   - objects: List of objects to open
+               ///   - using: The application file to open the object with
+               ///   - with: Initial values for properties
+               /// - Returns: `true` if the `open` message could be sent successfully
+               @inlinable
+               @discardableResult
+               func open(objects: SBElementArray, using application: Any? = nil, with properties: [String: Any]? = nil) -> Bool {
+                   open?(objects, using: application, withProperties: properties) != nil
+               }
+
+               /// Print the specified object(s).
+               /// - Parameters:
+               ///   - objects: List of objects to print
+               ///   - withProperties: Optional properties for the print command
+               /// - Returns: `true` if the `print` message could be sent successfully
+               @inlinable
+               @discardableResult
+               func print(_ objects: SBElementArray? = nil, with properties: [String: Any]? = nil) -> Bool {
+                   print?(objects, withProperties: properties) != nil
+               }
+
+               /// Quit the application.
+               /// - Returns: `true` if the `quit` message could be sent successfully
+               @inlinable
+               @discardableResult
+               func quit() -> Bool {
+                   sbQuit?() != nil
+               }
+
+               /// Close the specified object.
+               /// - Parameter object: The object to close
+               /// - Returns: `true` if the `close` message could be sent successfully
+               @inlinable
+               @discardableResult
+               func close(_ object: SBObject) -> Bool {
+                   sbClose?(object) != nil
+               }
+
+               /// Return the number of elements of a particular class within an object.
+               /// - Parameters:
+               ///   - object: The object whose elements are to be counted
+               ///   - ofKind: The class of elements to count
+               /// - Returns: The number of elements, or `nil` if the count could not be determined
+               @inlinable
+               func count(_ object: SBObject, ofKind kind: SBObject? = nil) -> Int? {
+                   count?(object, each: kind)
+               }
+
+               /// Return the size in bytes of an object.
+               /// - Parameters:
+               ///   - object: The object whose data size is to be returned
+               ///   - as: The data type for which the size is calculated (optional)
+               /// - Returns: The size of the object in bytes, or `nil` if the size could not be determined
+               @inlinable
+               func dataSize(of object: SBObject, as dataType: SBObject? = nil) -> Int? {
+                   dataSize?(object, as: dataType)
+               }
+
+               /// Move an item from its container to the trash.
+               ///
+               /// This method removes an item from its container to the trash.
+               /// - Parameter object: The item to delete
+               /// - Returns: The item that was just deleted, or `nil` if the deletion failed
+               @inlinable
+               @discardableResult
+               func delete(_ object: SBObject) -> SBObject! {
+                   deleteObject?(object) as? SBObject
+               }
+
+               /// Duplicate one or more object(s).
+               ///
+               /// This method duplicates one or more object(s) in the receiver.
+               /// - Parameters:
+               ///   - objects: The object(s) to duplicate
+               ///   - to: The new location for the object(s) (optional)
+               ///   - replacing: Whether to replace items with the same name (optional)
+               ///   - routingSuppressed: Whether to suppress autorouting (optional)
+               ///   - exactCopy: Whether to copy permissions/ownership as is (optional)
+               /// - Returns: The duplicated object(s), or `nil` if the duplication failed
+               @inlinable
+               @discardableResult
+               func duplicate(_ objects: Any!, to: Any? = false, replacing: Bool = false, routingSuppressed: Bool = false, exactCopy: Bool = false) -> Any! {
+                   sbDuplicate?(objects, to: to, replacing: replacing, routingSuppressed: routingSuppressed, exactCopy: exactCopy)
+               }
+
+               /// Verify if an object exists.
+               ///
+               /// This method checks if an object exists in the receiver.
+               /// - Parameter object: The object in question
+               /// - Returns: True if it exists, false if not, or `nil` if the check failed
+               @inlinable
+               func exists(_ object: Any!) -> Bool? {
+                   sbExists?(object)
+               }
+
+               /// Make a new element.
+               /// - Parameters:
+               ///   - new: The class of the new element
+               ///   - at: The location at which to insert the element
+               ///   - to: When creating an alias, the original item (optional)
+               ///   - with: Initial values for properties (optional)
+               /// - Returns: The new object(s) or `nil` if the creation failed
+               @inlinable
+               @discardableResult
+               func makeNewInstance(of objectClass: SBObject, at location: SBObject!, to alias: SBObject? = nil, with properties: [String: Any]? = nil) -> Any! {
+                   make?(new: objectClass, at: location, to: alias, withProperties: properties)
+               }
+
+               /// Move object(s) to a new location.
+               /// - Parameters:
+               ///   - objects: The object(s) to move
+               ///   - to: The new location for the object(s)
+               ///   - replacing: Whether to replace items with the same name (optional)
+               ///   - positionedAt: List of positions for destination items (optional)
+               ///   - routingSuppressed: Whether to suppress autorouting (optional)
+               /// - Returns: The object(s) after they have been moved
+               @inlinable
+               @discardableResult
+               func move(_ objects: Any!, to: Any!, replacing: Bool, positionedAt: [Any]?, routingSuppressed: Bool) -> Any! {
+                   sbMove?(objects, to: to, replacing: replacing, positionedAt: positionedAt, routingSuppressed: routingSuppressed)
+               }
+
+               /// Select the specified object(s).
+               /// - Parameter object: The object to select
+               @inlinable
+               @discardableResult
+               func select(_ object: Any!) -> Bool {
+                   sbSelect?(object) != nil
+               }
+           }
+
+           """
+        }
+        code += """
         extension SBApplication: \(baseName)SBApplicationProtocol {}
 
         """
@@ -935,12 +1080,106 @@ public typealias \(baseName)ElementArray = SBElementArray
         // MARK: - Generic Methods Protocol
 
         @objc public protocol \(baseName)GenericMethods {
+            /// Close the object.
+            ///
+            /// This closes the receiver object,
+            /// optionally saving it.
+            /// - Parameters:
+            ///   - saving: The save option to use (`.no`, `.yes`, or `.ask`).
+            ///   - savingIn: The URL to save the object in or `nil` for the default location.
             @objc optional func closeSaving(_ saving: \(baseName).SaveOptions, savingIn: URL?)
-            @objc optional func saveIn(_ in_: URL?, as: Any?)
+            /// Save the object.
+            ///
+            /// This saves the receiver object.
+            /// - Parameters:
+            ///   - url: The URL to save the object in or `nil` for the default location.
+            ///   - as: The format to save the object as or `nil` for the default format.
+            @objc optional func saveIn(_ url: URL?, as: Any?)
+            /// Print the object.
+            ///
+            /// This prints the receiver object.
+            /// - Parameters:
+            ///   - withProperties: The properties to use for printing or `nil` for the default properties.
+            ///   - printDialog: Whether to show the print dialog or not.
             @objc optional func printWithProperties(_ withProperties: [String: Any]?, printDialog: Bool)
-            @objc optional func delete()
+            /// Delete the receiver.
+            ///
+            /// This deletes the receiver object.
+            @objc(delete) optional func sbDelete()
+            /// Duplicate the receiver.
+            ///
+            /// This duplicates the receiver object.
+            /// - Parameters:
+            ///   - to: The location to duplicate the object to or `nil` for the default location.
+            ///   - withProperties: The properties to use for duplication or `nil` for the default properties.
             @objc optional func duplicateTo(_ to: SBObject?, withProperties: [String: Any]?)
+            /// Move the object.
+            ///
+            /// This moves the receiver object.
+            /// - Parameters:
+            ///   - to: The location to move the object to or `nil` for the default location.
             @objc optional func moveTo(_ to: SBObject?)
+        }
+
+        public extension \(baseName)GenericMethods {
+            /// Close the object.
+            ///
+            /// This closes the receiver object,
+            /// optionally saving it.
+            /// - Parameters:
+            ///   - saving: `.yes` to save, `.no` to discard, `.ask` to ask.
+            ///   - url: The URL to save the object to or `nil` for the default URL.
+            @inlinable
+            func close(saving: \(baseName).SaveOptions = .ask, url: URL? = nil) {
+                closeSaving?(saving, savingIn: url)
+            }
+            /// Save the object.
+            ///
+            /// This saves the receiver object.
+            /// - Parameters:
+            ///   - to: The URL to save the object to or `nil` for the default URL.
+            ///   - as: The format to save the object as or `nil` for the default format.
+            @inlinable
+            func save(to url: URL? = nil, as format: Any? = nil) {
+                saveIn?(url, as: format)
+            }
+            /// Print the object.
+            ///
+            /// This prints the receiver object.
+            /// - Parameters:
+            ///   - properties: The properties to print the object with.
+            ///   - showingPrintDialog: Whether to show the print dialog.
+            @inlinable
+            func print(properties: [String: Any]? = nil, showingPrintDialog: Bool = false) {
+                printWithProperties?(properties, printDialog: showingPrintDialog)
+            }
+            /// Delete the receiver.
+            ///
+            /// This deletes the receiver object.
+            @inlinable
+            @discardableResult
+            func delete() -> Bool {
+                sbDelete?() != nil
+            }
+            /// Duplicate the object.
+            ///
+            /// This duplicates the receiver object.
+            /// - Parameters:
+            ///   - to: The destination object or `nil` for the default destination.
+            ///   - properties: The properties to set on the duplicated object.
+            @inlinable
+            func duplicate(to destination: SBObject? = nil, properties: [String: Any]? = nil) {
+                duplicateTo?(destination, withProperties: properties)
+            }
+            /// Move the object.
+            ///
+            /// This moves the receiver object.
+            /// - Parameters:
+            ///   - to: The destination object or `nil` for the default destination.
+            @inlinable
+            func move(to destination: SBObject? = nil) {
+                moveTo?(destination)
+            }
         }
 
         // MARK: - Application Protocol
