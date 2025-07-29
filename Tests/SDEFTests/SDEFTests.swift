@@ -1299,8 +1299,8 @@ struct SDEFTests {
         command1.outputDirectory = tempDir.path
         command1.verbose = false
 
-        let resolvedURL1 = try command1.resolveSDEFPath(command1.sdefPath)
-        #expect(resolvedURL1.path == testSdefURL.path)
+        let resolved1 = try command1.resolveSDEFPath(command1.sdefPath)
+        #expect(resolved1.url.path == testSdefURL.path)
 
         // Test search path resolution
         var command2 = SDEFToSwift()
@@ -1309,8 +1309,8 @@ struct SDEFTests {
         command2.searchPath = [tempDir.path]
         command2.verbose = false
 
-        let resolvedURL2 = try command2.resolveSDEFPath(command2.sdefPath)
-        #expect(resolvedURL2.path == testSdefURL.path)
+        let resolved2 = try command2.resolveSDEFPath(command2.sdefPath)
+        #expect(resolved2.url.path == testSdefURL.path)
 
         // Test without .sdef extension
         var command3 = SDEFToSwift()
@@ -1319,8 +1319,8 @@ struct SDEFTests {
         command3.searchPath = [tempDir.path]
         command3.verbose = false
 
-        let resolvedURL3 = try command3.resolveSDEFPath(command3.sdefPath)
-        #expect(resolvedURL3.path == testSdefURL.path)
+        let resolved3 = try command3.resolveSDEFPath(command3.sdefPath)
+        #expect(resolved3.url.path == testSdefURL.path)
 
         // Test colon-separated search paths
         var command4 = SDEFToSwift()
@@ -1329,8 +1329,8 @@ struct SDEFTests {
         command4.searchPath = ["/nonexistent:\(tempDir.path):/another"]
         command4.verbose = false
 
-        let resolvedURL4 = try command4.resolveSDEFPath(command4.sdefPath)
-        #expect(resolvedURL4.path == testSdefURL.path)
+        let resolved4 = try command4.resolveSDEFPath(command4.sdefPath)
+        #expect(resolved4.url.path == testSdefURL.path)
 
         // Test file not found
         var command5 = SDEFToSwift()
@@ -1381,8 +1381,8 @@ struct SDEFTests {
         command.searchPath = [tempDir.path]
         command.verbose = false
 
-        let resolvedURL = try command.resolveSDEFPath(command.sdefPath)
-        #expect(resolvedURL.path == sdefInBundle.path)
+        let resolved = try command.resolveSDEFPath(command.sdefPath)
+        #expect(resolved.url.path == sdefInBundle.path)
     }
 
     @Test func testDefaultSearchPaths() throws {
