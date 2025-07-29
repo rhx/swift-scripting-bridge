@@ -1062,7 +1062,10 @@ public typealias \(baseName)ElementArray = SBElementArray
         }
 
         if let result = command.result {
-            let returnDescription = result.description?.capitalizingFirstLetter() ?? "The command result"
+            var returnDescription = result.description?.capitalizingFirstLetter() ?? "The command result"
+            if let desc = result.description, desc.lowercased().hasPrefix("to the") {
+                returnDescription = "A reference " + desc
+            }
             code += "    /// - Returns: \(returnDescription)\n"
         }
 
@@ -1229,7 +1232,10 @@ public typealias \(baseName)ElementArray = SBElementArray
         }
 
         if let result = command.result {
-            let returnDescription = result.description?.capitalizingFirstLetter() ?? "The command result"
+            var returnDescription = result.description?.capitalizingFirstLetter() ?? "The command result"
+            if let desc = result.description, desc.lowercased().hasPrefix("to the") {
+                returnDescription = "A reference " + desc
+            }
             code += "    /// - Returns: \(returnDescription)\n"
         }
 
