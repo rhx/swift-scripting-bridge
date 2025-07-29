@@ -1,5 +1,4 @@
 import Foundation
-import ScriptingBridge
 
 guard let music = Music.application else { fatalError("Could not access Tracks") }
 print("Got \(music.tracks.count) tracks")
