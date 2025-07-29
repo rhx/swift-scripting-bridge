@@ -21,7 +21,7 @@ print("   Folders: \(folders.count)")
 // Show accounts
 print("\n🏦 Accounts:")
 for account in accounts {
-    let accountName = account.name
+    guard let accountName = account.name else { continue }
     let noteCount = account.notes.count
     print("   • \(accountName) (\(noteCount) notes)")
 }
@@ -32,7 +32,7 @@ if folders.count > 0 {
     let maxFoldersToShow = min(10, folders.count)
     for i in 0..<maxFoldersToShow {
         let folder = folders[i]
-        let folderName = folder.name
+        guard let folderName = folder.name else { continue }
         let noteCount = folder.notes.count
         print("   • \(folderName) (\(noteCount) notes)")
     }
@@ -40,10 +40,11 @@ if folders.count > 0 {
 
 // Show recent notes
 print("\n📝 Recent Notes:")
+let notes = app.notes
 let maxNotesToShow = min(10, totalNotes)
 
 for i in 0..<maxNotesToShow {
-    let note = app.notes[i]
+    let note = notes[i]
     let title = note.name ?? "Untitled Note"
     let bodyPreview = (note.body ?? "").prefix(50)
     let cleanPreview = String(bodyPreview).replacingOccurrences(of: "\n", with: " ")
@@ -83,17 +84,17 @@ let searchTerm = "Swift"
 print("\n🔍 Notes containing '\(searchTerm)':")
 
 var foundNotesCount = 0
-for note in app.notes {
+for note in notes {
     if (note.body ?? "").localizedCaseInsensitiveContains(searchTerm) {
         let title = note.name ?? "Untitled Note"
         print("   • \(title)")
         foundNotesCount += 1
-        if foundNotesCount >= 5 { break } // Limit search results
+        if foundNotesCount >= 3 { break } // Limit search results
     }
 }
 
 if foundNotesCount == 0 {
     print("   No notes found containing '\(searchTerm)'")
-} else if foundNotesCount >= 5 {
-    print("   ... and potentially more (showing first 5)")
+} else if foundNotesCount >= 3 {
+    print("   ... and potentially more (showing first 3)")
 }
