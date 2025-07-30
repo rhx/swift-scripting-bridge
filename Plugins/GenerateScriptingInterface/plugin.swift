@@ -104,7 +104,9 @@ struct GenerateScriptingInterface: BuildToolPlugin {
             let searchPaths = [
                 context.package.directoryURL.path,
                 "/Applications",
+                "/Applications/Utilities",
                 "/System/Applications",
+                "/System/Applications/Utilities",
                 "/System/Library/CoreServices"
             ].joined(separator: ":")
 
