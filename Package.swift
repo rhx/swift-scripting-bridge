@@ -26,6 +26,11 @@ let package = Package(
         .library(name: "MailScripting", targets: ["MailScripting"]),
         .library(name: "TextEditScripting", targets: ["TextEditScripting"]),
         .library(name: "ContactsScripting", targets: ["ContactsScripting"]),
+        .library(name: "MessagesScripting", targets: ["MessagesScripting"]),
+        .library(name: "RemindersScripting", targets: ["RemindersScripting"]),
+        .library(name: "TVScripting", targets: ["TVScripting"]),
+        .library(name: "ConsoleScripting", targets: ["ConsoleScripting"]),
+        .library(name: "SafariScripting", targets: ["SafariScripting"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0"),
@@ -51,6 +56,11 @@ let package = Package(
         .target(name: "MailScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .target(name: "TextEditScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .target(name: "ContactsScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
+        .target(name: "MessagesScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
+        .target(name: "RemindersScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
+        .target(name: "TVScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
+        .target(name: "ConsoleScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
+        .target(name: "SafariScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .testTarget(
             name: "SwiftScriptingBridgeTests",
             dependencies: ["SwiftScriptingBridge"]),
