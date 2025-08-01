@@ -978,9 +978,13 @@ public typealias \(baseName)ElementArray = SBElementArray
             "{ get set }"
         }
 
-        // Protocol uses the standard property name without @objc renaming
-        // The property name itself matches the Objective-C/AppleScript convention
-        code += "        @objc optional var \(propertyName): \(swiftType) \(accessors)\n"
+        // Use the Swift-ified property name for @objc attribute to ensure valid syntax
+        let objcName = swiftPropertyName(property.name)
+        if objcName != propertyName {
+            code += "        @objc(\(objcName)) optional var \(propertyName): \(swiftType) \(accessors)\n"
+        } else {
+            code += "        @objc optional var \(propertyName): \(swiftType) \(accessors)\n"
+        }
 
         return code
     }
@@ -2224,7 +2228,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             // MARK: - Save Options
 
             /// Standard save options for dialogs
-            @objc public enum SaveOptions: AEKeyword {
+            @objc public enum SaveOptions: AEKeyword, Sendable {
                 case yes = 0x79657320  // 'yes '
                 case no = 0x6e6f2020   // 'no  '
                 case ask = 0x61736b20  // 'ask '

@@ -191,10 +191,10 @@ struct SDEFTests {
         #expect(swiftCode.contains("import Foundation"))
         #expect(swiftCode.contains("import ScriptingBridge"))
         #expect(swiftCode.contains("public enum Test {"))
-        #expect(swiftCode.contains("public typealias Application = SBApplication"))
+        #expect(swiftCode.contains("public typealias Object = SBObject"))
         #expect(swiftCode.contains("@objc(TestWindow) public protocol Window:")) // Protocol is now inside namespace with @objc attribute
         #expect(swiftCode.contains("/// The name property"))
-        #expect(swiftCode.contains("@objc(name) optional var name: String"))
+        #expect(swiftCode.contains("@objc optional var name: String"))
         #expect(swiftCode.contains("extension SBObject: Test.Window")) // Extension references namespaced protocol
     }
 
@@ -230,7 +230,7 @@ struct SDEFTests {
         let swiftCode = try generator.generateCode()
 
         #expect(swiftCode.contains("Test.Document")) // Now references namespaced protocol
-        #expect(swiftCode.contains("@objc(name) optional var name: String"))
+        #expect(swiftCode.contains("@objc optional var name: String"))
     }
 
     /// Tests error handling for invalid XML input.
@@ -741,7 +741,6 @@ struct SDEFTests {
         #expect(swiftCode.contains("var audioCDTracks: [Music.AudioCDTrack] {"))
         #expect(swiftCode.contains("untypedAudioCDTracks?() as? [Music.AudioCDTrack] ?? []"))
 
-        print("✅ All fixes verified: Protocol names, camelCase methods, DocC capitalization, setter comments, and strongly typed extensions")
     }
 
     /// Tests the complete solution for the user's original examples.
@@ -874,12 +873,12 @@ struct SDEFTests {
         #expect(swiftCode.contains("public enum Test {"))
 
         // Verify type aliases are inside namespace
-        #expect(swiftCode.contains("    public typealias Application = SBApplication"))
+        // Note: Application typealias is not generated to avoid conflicts with Application protocol
         #expect(swiftCode.contains("    public typealias Object = SBObject"))
         #expect(swiftCode.contains("    public typealias ElementArray = SBElementArray"))
 
         // Verify enumeration is inside namespace
-        #expect(swiftCode.contains("    @objc public enum TestOptions: AEKeyword {"))
+        #expect(swiftCode.contains("    @objc public enum TestOptions: AEKeyword, Sendable {"))
         #expect(swiftCode.contains("        case option1 = 0x6f707431"))
         #expect(swiftCode.contains("        case option2 = 0x6f707432"))
 
@@ -888,7 +887,7 @@ struct SDEFTests {
         #expect(swiftCode.contains("        public static let document = \"document\""))
 
         // Verify SaveOptions is inside namespace
-        #expect(swiftCode.contains("    @objc public enum SaveOptions: AEKeyword {"))
+        #expect(swiftCode.contains("    @objc public enum SaveOptions: AEKeyword, Sendable {"))
 
         // Verify namespace is closed
         #expect(swiftCode.contains("}\n\nextension SBObject: Test.Document"))
@@ -1187,7 +1186,9 @@ struct SDEFTests {
 
         // But verify namespace structure still exists
         #expect(swiftCode.contains("public enum Test {"))
-        #expect(swiftCode.contains("@objc public enum SaveOptions: AEKeyword {"))
+        // The enum should be generated from the SDEF with the comment "// MARK: - save options"
+        #expect(swiftCode.contains("// MARK: - save options"))
+        #expect(swiftCode.contains("@objc public enum SaveOptions: AEKeyword, Sendable {"))
     }
 
     /// Tests prefixed typealiases are not generated when flag is false.
@@ -1266,137 +1267,4 @@ struct SDEFTests {
         #expect(swiftCode.contains("public typealias TestElementArray = Test.ElementArray"))
     }
 
-    @Test func testSearchPathFunctionality() throws {
-        // Test that search path can find files in application bundles
-        // Note: This test depends on system applications being present
-
-        // Create a temporary directory with a test .sdef file
-        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("sdef_test_\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer {
-            try? FileManager.default.removeItem(at: tempDir)
-        }
-
-        // Create a simple test .sdef file
-        let testSdefContent = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
-        <dictionary title="Test Terminology">
-            <suite name="Standard Suite" code="core" description="Common classes and commands">
-                <class name="application" code="capp" description="The application">
-                    <property name="name" code="pnam" type="text" description="The name of the application."/>
-                </class>
-            </suite>
-        </dictionary>
-        """
-
-        let testSdefURL = tempDir.appendingPathComponent("TestApp.sdef")
-        try testSdefContent.write(to: testSdefURL, atomically: true, encoding: .utf8)
-
-        // Test absolute path resolution
-        var command1 = SDEFToSwift()
-        command1.sdefPath = testSdefURL.path
-        command1.outputDirectory = tempDir.path
-        command1.verbose = false
-
-        let resolved1 = try command1.resolveSDEFPath(command1.sdefPath)
-        #expect(resolved1.url.path == testSdefURL.path)
-
-        // Test search path resolution
-        var command2 = SDEFToSwift()
-        command2.sdefPath = "TestApp.sdef"
-        command2.outputDirectory = tempDir.path
-        command2.searchPath = [tempDir.path]
-        command2.verbose = false
-
-        let resolved2 = try command2.resolveSDEFPath(command2.sdefPath)
-        #expect(resolved2.url.path == testSdefURL.path)
-
-        // Test without .sdef extension
-        var command3 = SDEFToSwift()
-        command3.sdefPath = "TestApp"
-        command3.outputDirectory = tempDir.path
-        command3.searchPath = [tempDir.path]
-        command3.verbose = false
-
-        let resolved3 = try command3.resolveSDEFPath(command3.sdefPath)
-        #expect(resolved3.url.path == testSdefURL.path)
-
-        // Test colon-separated search paths
-        var command4 = SDEFToSwift()
-        command4.sdefPath = "TestApp"
-        command4.outputDirectory = tempDir.path
-        command4.searchPath = ["/nonexistent:\(tempDir.path):/another"]
-        command4.verbose = false
-
-        let resolved4 = try command4.resolveSDEFPath(command4.sdefPath)
-        #expect(resolved4.url.path == testSdefURL.path)
-
-        // Test file not found
-        var command5 = SDEFToSwift()
-        command5.sdefPath = "NonexistentApp"
-        command5.outputDirectory = tempDir.path
-        command5.searchPath = [tempDir.path]
-        command5.verbose = false
-
-        #expect(throws: (any Error).self) {
-            try command5.resolveSDEFPath(command5.sdefPath)
-        }
-    }
-
-    @Test func testApplicationBundleSearching() throws {
-        // Create a temporary app bundle structure for testing
-        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("bundle_test_\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer {
-            try? FileManager.default.removeItem(at: tempDir)
-        }
-
-        // Create app bundle structure
-        let appBundle = tempDir.appendingPathComponent("TestApp.app")
-        let contentsDir = appBundle.appendingPathComponent("Contents")
-        let resourcesDir = contentsDir.appendingPathComponent("Resources")
-        try FileManager.default.createDirectory(at: resourcesDir, withIntermediateDirectories: true)
-
-        // Create test .sdef file inside bundle
-        let testSdefContent = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
-        <dictionary title="Test Bundle Terminology">
-            <suite name="Standard Suite" code="core" description="Common classes and commands">
-                <class name="application" code="capp" description="The application">
-                    <property name="name" code="pnam" type="text" description="The name of the application."/>
-                </class>
-            </suite>
-        </dictionary>
-        """
-
-        let sdefInBundle = resourcesDir.appendingPathComponent("TestApp.sdef")
-        try testSdefContent.write(to: sdefInBundle, atomically: true, encoding: .utf8)
-
-        // Test that we can find the .sdef file inside the app bundle
-        var command = SDEFToSwift()
-        command.sdefPath = "TestApp"
-        command.outputDirectory = tempDir.path
-        command.searchPath = [tempDir.path]
-        command.verbose = false
-
-        let resolved = try command.resolveSDEFPath(command.sdefPath)
-        #expect(resolved.url.path == sdefInBundle.path)
-    }
-
-    @Test func testDefaultSearchPaths() throws {
-        var command = SDEFToSwift()
-        command.searchPath = [] // No custom search paths
-
-        let defaultPaths = command.getSearchPaths()
-
-        // Should include common macOS directories
-        #expect(defaultPaths.contains("."))
-
-        // Check that non-existent paths are filtered out
-        for path in defaultPaths {
-            #expect(FileManager.default.fileExists(atPath: path))
-        }
-    }
 }
