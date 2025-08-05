@@ -459,18 +459,18 @@ public final class SDEFSwiftCodeGenerator {
                     print("DEBUG:   Class extension: extends '\(classExtension.extends)'")
                 }
             }
-            
+
             for sdefClass in suite.classes {
                 // Check if we already generated a protocol for this class name
                 let className = sdefClass.name.lowercased()
-                
+
                 // Skip if we already generated this class from another suite (prevent duplicates)
                 let alreadyGenerated = generatedClassNames.contains(className)
-                
+
                 if debug && alreadyGenerated {
                     print("DEBUG: Skipping duplicate class '\(sdefClass.name)' from suite '\(suite.name)'")
                 }
-                
+
                 if !alreadyGenerated {
                     generatedClassNames.insert(className)
                     code += generateNamespacedClassProtocol(sdefClass, suite: suite)
@@ -481,21 +481,21 @@ public final class SDEFSwiftCodeGenerator {
             // Only generate if they weren't merged into existing classes
             for classExtension in suite.classExtensions {
                 let extendedClassName = classExtension.extends.lowercased()
-                
+
                 // Check if there's already a regular class with this name in any suite
-                let hasExistingClass = model.suites.flatMap { $0.classes }.contains { 
-                    $0.name.lowercased() == extendedClassName 
-                } || model.standardClasses.contains { 
-                    $0.name.lowercased() == extendedClassName 
+                let hasExistingClass = model.suites.flatMap { $0.classes }.contains {
+                    $0.name.lowercased() == extendedClassName
+                } || model.standardClasses.contains {
+                    $0.name.lowercased() == extendedClassName
                 }
-                
+
                 if debug {
                     print("DEBUG: Processing class extension '\(classExtension.extends)' (lowercased: '\(extendedClassName)')")
                     print("DEBUG: hasExistingClass = \(hasExistingClass)")
                     let allClasses = model.suites.flatMap { $0.classes }.map { $0.name.lowercased() } + model.standardClasses.map { $0.name.lowercased() }
                     print("DEBUG: All classes: \(allClasses)")
                 }
-                
+
                 // Only generate separate protocol if no existing class found
                 // (meaning the extension extends a class from another SDEF or system class)
                 if !hasExistingClass {
@@ -1077,14 +1077,14 @@ public typealias \(baseName)ElementArray = SBElementArray
             // Only generate if they weren't merged into existing classes
             for classExtension in suite.classExtensions {
                 let extendedClassName = classExtension.extends.lowercased()
-                
+
                 // Check if there's already a regular class with this name in any suite
-                let hasExistingClass = model.suites.flatMap { $0.classes }.contains { 
-                    $0.name.lowercased() == extendedClassName 
-                } || model.standardClasses.contains { 
-                    $0.name.lowercased() == extendedClassName 
+                let hasExistingClass = model.suites.flatMap { $0.classes }.contains {
+                    $0.name.lowercased() == extendedClassName
+                } || model.standardClasses.contains {
+                    $0.name.lowercased() == extendedClassName
                 }
-                
+
                 // Only generate extension if no existing class found
                 if !hasExistingClass {
                     let protocolName = swiftClassName(classExtension.extends)
@@ -1438,6 +1438,8 @@ public typealias \(baseName)ElementArray = SBElementArray
                     paramString += " = nil"
                 } else if paramType.lowercased() == "bool" {
                     paramString += " = false"
+                } else if enumeration(paramType, hasCase: "ask") {
+                    paramString += " = .ask"
                 }
             }
 
@@ -1472,6 +1474,8 @@ public typealias \(baseName)ElementArray = SBElementArray
                         paramString += " = nil"
                     } else if paramType.lowercased() == "bool" {
                         paramString += " = false"
+                    } else if enumeration(paramType, hasCase: "ask") {
+                        paramString += " = .ask"
                     }
                 }
 
@@ -1749,6 +1753,30 @@ public typealias \(baseName)ElementArray = SBElementArray
         return baseType
     }
 
+    /// Check if the given Swift type is an enumeration that contains the specified case
+    private func enumeration(_ swiftType: String, hasCase caseName: String) -> Bool {
+        // Extract the enum name from the namespaced type (e.g., "TextEdit.Savo" -> "Savo")
+        let enumName = if swiftType.contains(".") {
+            String(swiftType.split(separator: ".").last ?? "")
+        } else {
+            swiftType
+        }
+
+        // Find the enumeration in the model
+        for suite in model.suites {
+            for enumeration in suite.enumerations {
+                if swiftClassName(enumeration.name) == enumName {
+                    // Check if this enumeration has the specified enumerator
+                    return enumeration.enumerators.contains { enumerator in
+                        enumerator.name.lowercased() == caseName.lowercased()
+                    }
+                }
+            }
+        }
+
+        return false
+    }
+
     private func swiftTypeName(_ objcType: String) -> String {
         // Handle dotted type references (e.g., "text.ctxt" should map to "Text")
         let typeToProcess = if objcType.contains(".") {
@@ -1757,7 +1785,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         } else {
             objcType
         }
-        
+
         switch typeToProcess.lowercased() {
         case "text", "string":
             // If original type was "text.ctxt" or similar, it refers to a Text class, not a String
@@ -1842,7 +1870,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         } else {
             objcType
         }
-        
+
         switch typeToProcess.lowercased() {
         case "text", "string":
             // If original type was "text.ctxt" or similar, it refers to a Text class, not a String
