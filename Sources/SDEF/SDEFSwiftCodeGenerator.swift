@@ -440,6 +440,7 @@ public final class SDEFSwiftCodeGenerator {
 
         // Generate protocols for standard classes that haven't been merged (inside namespace)
         let mergedClassNames = Set(model.suites.flatMap { $0.classes }.map { $0.name })
+        var generatedClassNames = Set<String>()
         for standardClass in model.standardClasses {
             // Only generate if this standard class hasn't been merged into a regular class
             if !mergedClassNames.contains(standardClass.name) {
@@ -449,13 +450,59 @@ public final class SDEFSwiftCodeGenerator {
 
         // Generate protocols for classes (inside namespace)
         for suite in model.suites {
+            if debug {
+                print("DEBUG: Processing suite '\(suite.name)' with \(suite.classes.count) classes and \(suite.classExtensions.count) class extensions")
+                for sdefClass in suite.classes {
+                    print("DEBUG:   Regular class: '\(sdefClass.name)'")
+                }
+                for classExtension in suite.classExtensions {
+                    print("DEBUG:   Class extension: extends '\(classExtension.extends)'")
+                }
+            }
+            
             for sdefClass in suite.classes {
-                code += generateNamespacedClassProtocol(sdefClass, suite: suite)
+                // Check if we already generated a protocol for this class name
+                let className = sdefClass.name.lowercased()
+                
+                // Skip if we already generated this class from another suite (prevent duplicates)
+                let alreadyGenerated = generatedClassNames.contains(className)
+                
+                if debug && alreadyGenerated {
+                    print("DEBUG: Skipping duplicate class '\(sdefClass.name)' from suite '\(suite.name)'")
+                }
+                
+                if !alreadyGenerated {
+                    generatedClassNames.insert(className)
+                    code += generateNamespacedClassProtocol(sdefClass, suite: suite)
+                }
             }
 
             // Generate protocols for class extensions (inside namespace)
+            // Only generate if they weren't merged into existing classes
             for classExtension in suite.classExtensions {
-                code += generateNamespacedClassExtensionProtocol(classExtension, suite: suite)
+                let extendedClassName = classExtension.extends.lowercased()
+                
+                // Check if there's already a regular class with this name in any suite
+                let hasExistingClass = model.suites.flatMap { $0.classes }.contains { 
+                    $0.name.lowercased() == extendedClassName 
+                } || model.standardClasses.contains { 
+                    $0.name.lowercased() == extendedClassName 
+                }
+                
+                if debug {
+                    print("DEBUG: Processing class extension '\(classExtension.extends)' (lowercased: '\(extendedClassName)')")
+                    print("DEBUG: hasExistingClass = \(hasExistingClass)")
+                    let allClasses = model.suites.flatMap { $0.classes }.map { $0.name.lowercased() } + model.standardClasses.map { $0.name.lowercased() }
+                    print("DEBUG: All classes: \(allClasses)")
+                }
+                
+                // Only generate separate protocol if no existing class found
+                // (meaning the extension extends a class from another SDEF or system class)
+                if !hasExistingClass {
+                    code += generateNamespacedClassExtensionProtocol(classExtension, suite: suite)
+                } else if debug {
+                    print("DEBUG: Skipping class extension protocol for '\(classExtension.extends)' because existing class found")
+                }
             }
         }
 
@@ -991,6 +1038,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
     private func generateNamespacedSBObjectExtensions() -> String {
         var code = ""
+        var generatedExtensionNames = Set<String>()
 
         // Generate extensions for standard classes that haven't been merged
         let mergedClassNames = Set(model.suites.flatMap { $0.classes }.map { $0.name })
@@ -998,10 +1046,14 @@ public typealias \(baseName)ElementArray = SBElementArray
             // Only generate if this standard class hasn't been merged into a regular class
             if !mergedClassNames.contains(standardClass.name) {
                 let protocolName = swiftClassName(standardClass.name)
-                if standardClass.name.lowercased() == "application" {
-                    code += "\nextension SBApplication: \(baseName).\(protocolName) {}\n"
-                } else {
-                    code += "\nextension SBObject: \(baseName).\(protocolName) {}\n"
+                let extensionKey = "\(protocolName.lowercased())"
+                if !generatedExtensionNames.contains(extensionKey) {
+                    generatedExtensionNames.insert(extensionKey)
+                    if standardClass.name.lowercased() == "application" {
+                        code += "\nextension SBApplication: \(baseName).\(protocolName) {}\n"
+                    } else {
+                        code += "\nextension SBObject: \(baseName).\(protocolName) {}\n"
+                    }
                 }
             }
         }
@@ -1010,17 +1062,38 @@ public typealias \(baseName)ElementArray = SBElementArray
         for suite in model.suites {
             for sdefClass in suite.classes {
                 let protocolName = swiftClassName(sdefClass.name)
-                if sdefClass.name.lowercased() == "application" {
-                    code += "\nextension SBApplication: \(baseName).\(protocolName) {}\n"
-                } else {
-                    code += "\nextension SBObject: \(baseName).\(protocolName) {}\n"
+                let extensionKey = "\(protocolName.lowercased())"
+                if !generatedExtensionNames.contains(extensionKey) {
+                    generatedExtensionNames.insert(extensionKey)
+                    if sdefClass.name.lowercased() == "application" {
+                        code += "\nextension SBApplication: \(baseName).\(protocolName) {}\n"
+                    } else {
+                        code += "\nextension SBObject: \(baseName).\(protocolName) {}\n"
+                    }
                 }
             }
 
             // Generate extensions for class extensions
+            // Only generate if they weren't merged into existing classes
             for classExtension in suite.classExtensions {
-                let protocolName = swiftClassName(classExtension.extends)
-                code += "\nextension SBObject: \(baseName).\(protocolName) {}\n"
+                let extendedClassName = classExtension.extends.lowercased()
+                
+                // Check if there's already a regular class with this name in any suite
+                let hasExistingClass = model.suites.flatMap { $0.classes }.contains { 
+                    $0.name.lowercased() == extendedClassName 
+                } || model.standardClasses.contains { 
+                    $0.name.lowercased() == extendedClassName 
+                }
+                
+                // Only generate extension if no existing class found
+                if !hasExistingClass {
+                    let protocolName = swiftClassName(classExtension.extends)
+                    let extensionKey = "\(protocolName.lowercased())"
+                    if !generatedExtensionNames.contains(extensionKey) {
+                        generatedExtensionNames.insert(extensionKey)
+                        code += "\nextension SBObject: \(baseName).\(protocolName) {}\n"
+                    }
+                }
             }
         }
 
@@ -1067,6 +1140,25 @@ public typealias \(baseName)ElementArray = SBElementArray
         return code
     }
 
+    private func getSaveOptionsTypeFromSDEF() -> String {
+        // Look for the 'close' command and find its 'saving' parameter type
+        for suite in model.suites {
+            for command in suite.commands {
+                if command.name.lowercased() == "close" {
+                    for parameter in command.parameters {
+                        if parameter.name?.lowercased() == "saving" {
+                            // Found the saving parameter, now convert its type to Swift
+                            let swiftTypeName = swiftNamespacedTypeName(parameter.type.baseType)
+                            return "\(baseName).\(swiftTypeName)"
+                        }
+                    }
+                }
+            }
+        }
+        // Fallback to SaveOptions if no close/saving command found
+        return "\(baseName).SaveOptions"
+    }
+
     private func generateApplicationProtocol() -> String {
         // Always use prefixed base protocol to avoid conflicts between different SDEF files
         let applicationBaseProtocol = "\(baseName)SBApplicationProtocol"
@@ -1091,7 +1183,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             /// - Parameters:
             ///   - saving: The save option to use (`.no`, `.yes`, or `.ask`).
             ///   - savingIn: The URL to save the object in or `nil` for the default location.
-            @objc optional func closeSaving(_ saving: \(baseName).SaveOptions, savingIn: URL?)
+            @objc optional func closeSaving(_ saving: \(getSaveOptionsTypeFromSDEF()), savingIn: URL?)
             /// Save the object.
             ///
             /// This saves the receiver object.
@@ -1134,7 +1226,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             ///   - saving: `.yes` to save, `.no` to discard, `.ask` to ask.
             ///   - url: The URL to save the object to or `nil` for the default URL.
             @inlinable
-            func close(saving: \(baseName).SaveOptions = .ask, url: URL? = nil) {
+            func close(saving: \(getSaveOptionsTypeFromSDEF()) = .ask, url: URL? = nil) {
                 closeSaving?(saving, savingIn: url)
             }
             /// Save the object.
@@ -1658,9 +1750,22 @@ public typealias \(baseName)ElementArray = SBElementArray
     }
 
     private func swiftTypeName(_ objcType: String) -> String {
-        switch objcType.lowercased() {
+        // Handle dotted type references (e.g., "text.ctxt" should map to "Text")
+        let typeToProcess = if objcType.contains(".") {
+            // For dotted types like "text.ctxt", use just the first part as the type name
+            String(objcType.split(separator: ".").first ?? "")
+        } else {
+            objcType
+        }
+        
+        switch typeToProcess.lowercased() {
         case "text", "string":
-            return "String"
+            // If original type was "text.ctxt" or similar, it refers to a Text class, not a String
+            if objcType.contains(".") {
+                return "Text"
+            } else {
+                return "String"
+            }
         case "integer", "int":
             return "Int"
         case "real", "double":
@@ -1706,7 +1811,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             }
 
             // Check if it's an enumeration type
-            let cleanType = swiftClassName(objcType)
+            let cleanType = swiftClassName(typeToProcess)
             if enumerationNames.contains(cleanType) {
                 // It's an enum - use namespace
                 return "\(baseName).\(cleanType)"
@@ -1730,9 +1835,22 @@ public typealias \(baseName)ElementArray = SBElementArray
     }
 
     private func swiftNamespacedTypeName(_ objcType: String) -> String {
-        switch objcType.lowercased() {
+        // Handle dotted type references (e.g., "text.ctxt" should map to "Text")
+        let typeToProcess = if objcType.contains(".") {
+            // For dotted types like "text.ctxt", use just the first part as the type name
+            String(objcType.split(separator: ".").first ?? "")
+        } else {
+            objcType
+        }
+        
+        switch typeToProcess.lowercased() {
         case "text", "string":
-            return "String"
+            // If original type was "text.ctxt" or similar, it refers to a Text class, not a String
+            if objcType.contains(".") {
+                return "Text"
+            } else {
+                return "String"
+            }
         case "integer", "int":
             return "Int"
         case "real", "double":
@@ -1771,7 +1889,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             return "Int64"
         default:
             // Check if it's an enumeration type
-            let cleanType = swiftClassName(objcType)
+            let cleanType = swiftClassName(typeToProcess)
             if enumerationNames.contains(cleanType) {
                 // It's an enum - reference within the same namespace
                 return cleanType
@@ -1912,16 +2030,21 @@ public typealias \(baseName)ElementArray = SBElementArray
         // MARK: - Strongly Typed Extensions
 
         """
+        var generatedStronglyTypedExtensions = Set<String>()
 
         // For included files, only process classes from the main suites (not standard classes)
         // For main files, process all classes from main suites
         for suite in model.suites {
             for sdefClass in suite.classes {
                 if !sdefClass.elements.isEmpty {
-                    if verbose {
-                        print("Processing class '\(sdefClass.name)' with \(sdefClass.elements.count) elements:")
+                    let className = sdefClass.name.lowercased()
+                    if !generatedStronglyTypedExtensions.contains(className) {
+                        generatedStronglyTypedExtensions.insert(className)
+                        if verbose {
+                            print("Processing class '\(sdefClass.name)' with \(sdefClass.elements.count) elements:")
+                        }
+                        code += generateStronglyTypedExtension(sdefClass, suite: suite)
                     }
-                    code += generateStronglyTypedExtension(sdefClass, suite: suite)
                 }
             }
         }
@@ -1941,10 +2064,15 @@ public typealias \(baseName)ElementArray = SBElementArray
                         continue
                     }
 
-                    if verbose {
-                        print("Processing standard class '\(standardClass.name)' with \(standardClass.elements.count) elements:")
+                    let className = standardClass.name.lowercased()
+                    if !generatedStronglyTypedExtensions.contains(className) {
+                        generatedStronglyTypedExtensions.insert(className)
+
+                        if verbose {
+                            print("Processing standard class '\(standardClass.name)' with \(standardClass.elements.count) elements:")
+                        }
+                        code += generateStronglyTypedExtension(standardClass, suite: nil)
                     }
-                    code += generateStronglyTypedExtension(standardClass, suite: nil)
                 }
             }
         }
