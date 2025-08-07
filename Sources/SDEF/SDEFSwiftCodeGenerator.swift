@@ -72,7 +72,7 @@ public final class SDEFSwiftCodeGenerator {
         self.debug = debug
     }
 
-    /// Generates complete Swift source code from the SDEF model.
+    /// Generates Swift source file code from the SDEF model.
     ///
     /// This method produces a complete Swift source file that includes all necessary imports,
     /// type definitions, protocols, and extensions needed to interact with the scriptable
@@ -655,7 +655,12 @@ public typealias \(baseName)ElementArray = SBElementArray
             let inheritsClassExists = allClasses.contains { $0.name.lowercased() == inherits.lowercased() }
 
             if inheritsClassExists {
-                inheritanceList.append("\(baseName)\(cleanInherits)")
+                // If the inherited class name conflicts with the namespace name, add "Protocol" suffix
+                if cleanInherits == baseName {
+                    inheritanceList.append("\(baseName)\(cleanInherits)Protocol")
+                } else {
+                    inheritanceList.append("\(baseName)\(cleanInherits)")
+                }
             } else if verbose {
                 print("Warning: Class '\(sdefClass.name)' inherits from '\(inherits)' but '\(inherits)' is not defined in the SDEF model")
             }
@@ -803,7 +808,12 @@ public typealias \(baseName)ElementArray = SBElementArray
     }
 
     private func generateNamespacedClassProtocol(_ sdefClass: SDEFClass, suite: SDEFSuite) -> String {
-        let protocolName = swiftClassName(sdefClass.name)
+        var protocolName = swiftClassName(sdefClass.name)
+
+        // If the protocol name would conflict with the namespace name, add "Protocol" suffix
+        if protocolName == baseName {
+            protocolName = "\(protocolName)Protocol"
+        }
 
         var code = """
 
@@ -839,7 +849,12 @@ public typealias \(baseName)ElementArray = SBElementArray
 
             if inheritsClassExists {
                 // Reference within the same namespace
-                inheritanceList.append(cleanInherits)
+                // If the inherited class name conflicts with the namespace name, add "Protocol" suffix
+                if cleanInherits == baseName {
+                    inheritanceList.append("\(cleanInherits)Protocol")
+                } else {
+                    inheritanceList.append(cleanInherits)
+                }
             } else if verbose {
                 print("Warning: Class '\(sdefClass.name)' inherits from '\(inherits)' but '\(inherits)' is not defined in the SDEF model")
             }
@@ -1045,7 +1060,11 @@ public typealias \(baseName)ElementArray = SBElementArray
         for standardClass in model.standardClasses {
             // Only generate if this standard class hasn't been merged into a regular class
             if !mergedClassNames.contains(standardClass.name) {
-                let protocolName = swiftClassName(standardClass.name)
+                var protocolName = swiftClassName(standardClass.name)
+                // If the protocol name conflicts with the namespace name, add "Protocol" suffix
+                if protocolName == baseName {
+                    protocolName = "\(protocolName)Protocol"
+                }
                 let extensionKey = "\(protocolName.lowercased())"
                 if !generatedExtensionNames.contains(extensionKey) {
                     generatedExtensionNames.insert(extensionKey)
@@ -1061,7 +1080,11 @@ public typealias \(baseName)ElementArray = SBElementArray
         // Generate extensions for regular classes
         for suite in model.suites {
             for sdefClass in suite.classes {
-                let protocolName = swiftClassName(sdefClass.name)
+                var protocolName = swiftClassName(sdefClass.name)
+                // If the protocol name conflicts with the namespace name, add "Protocol" suffix
+                if protocolName == baseName {
+                    protocolName = "\(protocolName)Protocol"
+                }
                 let extensionKey = "\(protocolName.lowercased())"
                 if !generatedExtensionNames.contains(extensionKey) {
                     generatedExtensionNames.insert(extensionKey)
@@ -1087,7 +1110,11 @@ public typealias \(baseName)ElementArray = SBElementArray
 
                 // Only generate extension if no existing class found
                 if !hasExistingClass {
-                    let protocolName = swiftClassName(classExtension.extends)
+                    var protocolName = swiftClassName(classExtension.extends)
+                    // If the protocol name conflicts with the namespace name, add "Protocol" suffix
+                    if protocolName == baseName {
+                        protocolName = "\(protocolName)Protocol"
+                    }
                     let extensionKey = "\(protocolName.lowercased())"
                     if !generatedExtensionNames.contains(extensionKey) {
                         generatedExtensionNames.insert(extensionKey)
@@ -1845,7 +1872,12 @@ public typealias \(baseName)ElementArray = SBElementArray
                 return "\(baseName).\(cleanType)"
             } else {
                 // It's a class name - use namespaced protocol name
-                return "\(baseName).\(cleanType)"
+                // If the class name conflicts with the namespace name, add "Protocol" suffix
+                if cleanType == baseName {
+                    return "\(baseName).\(cleanType)Protocol"
+                } else {
+                    return "\(baseName).\(cleanType)"
+                }
             }
         }
     }
@@ -1923,7 +1955,12 @@ public typealias \(baseName)ElementArray = SBElementArray
                 return cleanType
             } else {
                 // It's a class name - reference within the same namespace
-                return cleanType
+                // If the class name conflicts with the namespace name, add "Protocol" suffix
+                if cleanType == baseName {
+                    return "\(cleanType)Protocol"
+                } else {
+                    return cleanType
+                }
             }
         }
     }
@@ -2109,7 +2146,12 @@ public typealias \(baseName)ElementArray = SBElementArray
     }
 
     private func generateStronglyTypedExtension(_ sdefClass: SDEFClass, suite: SDEFSuite?) -> String {
-        let protocolName = "\(baseName).\(swiftClassName(sdefClass.name))"
+        var className = swiftClassName(sdefClass.name)
+        // If the class name conflicts with the namespace name, add "Protocol" suffix
+        if className == baseName {
+            className = "\(className)Protocol"
+        }
+        let protocolName = "\(baseName).\(className)"
 
         var code = """
 
@@ -2146,7 +2188,12 @@ public typealias \(baseName)ElementArray = SBElementArray
                 pluralPropertyName = swiftMethodName(pluralForm)
             }
 
-            let elementTypeName = "\(baseName).\(swiftClassName(element.type))"
+            var elementClassName = swiftClassName(element.type)
+            // If the element class name conflicts with the namespace name, add "Protocol" suffix
+            if elementClassName == baseName {
+                elementClassName = "\(elementClassName)Protocol"
+            }
+            let elementTypeName = "\(baseName).\(elementClassName)"
             let untypedMethodName = "untyped" + methodName.capitalizingFirstLetter()
 
             code += """
@@ -2195,7 +2242,12 @@ public typealias \(baseName)ElementArray = SBElementArray
                 let typeName = if basicTypes.contains(baseTypeName) {
                     baseTypeName
                 } else {
-                    "\(baseName).\(baseTypeName)"
+                    // If the class name conflicts with the namespace name, add "Protocol" suffix
+                    if baseTypeName == baseName {
+                        "\(baseName).\(baseTypeName)Protocol"
+                    } else {
+                        "\(baseName).\(baseTypeName)"
+                    }
                 }
 
                 code += """
@@ -2260,7 +2312,12 @@ public typealias \(baseName)ElementArray = SBElementArray
             if basicTypes.contains(baseTypeName) {
                 swiftType = baseTypeName
             } else {
-                swiftType = "\(baseName).\(baseTypeName)"
+                // If the class name conflicts with the namespace name, add "Protocol" suffix
+                if baseTypeName == baseName {
+                    swiftType = "\(baseName).\(baseTypeName)Protocol"
+                } else {
+                    swiftType = "\(baseName).\(baseTypeName)"
+                }
             }
 
             // Skip list properties - they already have strongly typed accessors generated elsewhere
