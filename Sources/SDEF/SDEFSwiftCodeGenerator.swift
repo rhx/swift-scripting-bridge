@@ -565,7 +565,7 @@ public typealias \(baseName)ElementArray = SBElementArray
     }
 
     private func generateEnumeration(_ enumeration: SDEFEnumeration) -> String {
-        let enumName = "\(baseName)\(enumeration.name.capitalizingFirstLetter().replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "-", with: ""))"
+        let enumName = "\(baseName)\(enumeration.name.capitalisingFirstLetter().replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "-", with: ""))"
 
         var code = """
 
@@ -574,7 +574,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         """
 
         if let description = enumeration.description {
-            code += "/// \(description.capitalizingFirstLetter())\n"
+            code += "/// \(description.capitalisingFirstLetter())\n"
         }
 
         code += "@objc public enum \(enumName): AEKeyword, Sendable {\n"
@@ -585,7 +585,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         for enumerator in enumeration.enumerators {
             if let description = enumerator.description {
-                code += "    /// \(description.capitalizingFirstLetter())\n"
+                code += "    /// \(description.capitalisingFirstLetter())\n"
             }
 
             let caseName = swiftCaseName(enumerator.name)
@@ -629,7 +629,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         """
 
         if let description = sdefClass.description {
-            code += "/// \(description.capitalizingFirstLetter())\n"
+            code += "/// \(description.capitalisingFirstLetter())\n"
         }
 
         var inheritanceList: [String]
@@ -694,10 +694,10 @@ public typealias \(baseName)ElementArray = SBElementArray
 
             // Add documentation if available
             if let elementClass = elementClass, let description = elementClass.description {
-                code += "    /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
+                code += "    /// Array of \(element.type) objects - \(description.lowercasingFirstLetter())\n"
             }
 
-            code += "    @objc(\(methodName)) optional func untyped\(methodName.capitalizingFirstLetter())() -> SBElementArray\n"
+            code += "    @objc(\(methodName)) optional func untyped\(methodName.capitalisingFirstLetter())() -> SBElementArray\n"
         }
 
         // Generate setter methods only for write-only properties
@@ -713,8 +713,8 @@ public typealias \(baseName)ElementArray = SBElementArray
 
                 // Generate DocC comment for setter
                 if let description = property.description {
-                    let setterDescription = "Set \(description.lowercaseFirstLetter())"
-                    code += "    /// \(setterDescription.capitalizingFirstLetter())\n"
+                    let setterDescription = "Set \(description.lowercasingFirstLetter())"
+                    code += "    /// \(setterDescription.capitalisingFirstLetter())\n"
                 }
 
                 // Fix setter naming for special cases
@@ -789,10 +789,10 @@ public typealias \(baseName)ElementArray = SBElementArray
 
             // Add documentation if available
             if let elementClass = elementClass, let description = elementClass.description {
-                code += "    /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
+                code += "    /// Array of \(element.type) objects - \(description.lowercasingFirstLetter())\n"
             }
 
-            code += "    @objc(\(methodName)) optional func untyped\(methodName.capitalizingFirstLetter())() -> SBElementArray\n"
+            code += "    @objc(\(methodName)) optional func untyped\(methodName.capitalisingFirstLetter())() -> SBElementArray\n"
         }
 
         code += "}\n"
@@ -822,7 +822,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         """
 
         if let description = sdefClass.description {
-            code += "    /// \(description.capitalizingFirstLetter())\n"
+            code += "    /// \(description.capitalisingFirstLetter())\n"
         }
 
         var inheritanceList: [String]
@@ -888,10 +888,10 @@ public typealias \(baseName)ElementArray = SBElementArray
 
             // Add documentation if available
             if let elementClass = elementClass, let description = elementClass.description {
-                code += "        /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
+                code += "        /// Array of \(element.type) objects - \(description.lowercasingFirstLetter())\n"
             }
 
-            code += "        @objc(\(methodName)) optional func untyped\(methodName.capitalizingFirstLetter())() -> SBElementArray\n"
+            code += "        @objc(\(methodName)) optional func untyped\(methodName.capitalisingFirstLetter())() -> SBElementArray\n"
         }
 
         // Generate setter methods only for write-only properties
@@ -907,8 +907,8 @@ public typealias \(baseName)ElementArray = SBElementArray
 
                 // Generate DocC comment for setter
                 if let description = property.description {
-                    let setterDescription = "Set \(description.lowercaseFirstLetter())"
-                    code += "        /// \(setterDescription.capitalizingFirstLetter())\n"
+                    let setterDescription = "Set \(description.lowercasingFirstLetter())"
+                    code += "        /// \(setterDescription.capitalisingFirstLetter())\n"
                 }
 
                 // Fix setter naming for special cases
@@ -918,7 +918,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 case "url":
                     "URL"
                 default:
-                    propertyName.capitalizingFirstLetter()
+                    propertyName.capitalisingFirstLetter()
                 }
 
                 code += "        @objc optional func set\(setterName)(_ \(propertyName): \(swiftType))\n"
@@ -1000,10 +1000,10 @@ public typealias \(baseName)ElementArray = SBElementArray
 
             // Add documentation if available
             if let elementClass = elementClass, let description = elementClass.description {
-                code += "        /// Array of \(element.type) objects - \(description.lowercaseFirstLetter())\n"
+                code += "        /// Array of \(element.type) objects - \(description.lowercasingFirstLetter())\n"
             }
 
-            code += "        @objc(\(methodName)) optional func untyped\(methodName.capitalizingFirstLetter())() -> SBElementArray\n"
+            code += "        @objc(\(methodName)) optional func untyped\(methodName.capitalisingFirstLetter())() -> SBElementArray\n"
         }
 
         code += "    }\n"
@@ -1015,7 +1015,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         var code = ""
 
         if let description = property.description {
-            code += "        /// \(description.capitalizingFirstLetter())\n"
+            code += "        /// \(description.capitalisingFirstLetter())\n"
         }
 
         // Protocol should use the original SDEF property name (Objective-C style)
@@ -1024,7 +1024,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         // For list properties, use "untyped" prefix and SBElementArray
         let (propertyName, swiftType) = if property.type.isList {
-            ("untyped" + basePropertyName.capitalizingFirstLetter(), "SBElementArray")
+            ("untyped" + basePropertyName.capitalisingFirstLetter(), "SBElementArray")
         } else {
             (basePropertyName, swiftNamespacedType(for: property.type))
         }
@@ -1131,7 +1131,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         var code = ""
 
         if let description = property.description {
-            code += "    /// \(description.capitalizingFirstLetter())\n"
+            code += "    /// \(description.capitalisingFirstLetter())\n"
         }
 
         // Use cocoa key if available, otherwise use the property name
@@ -1145,7 +1145,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         // For list properties, use "untyped" prefix and SBElementArray
         let (propertyName, swiftType) = if property.type.isList {
-            ("untyped" + basePropertyName.capitalizingFirstLetter(), "SBElementArray")
+            ("untyped" + basePropertyName.capitalisingFirstLetter(), "SBElementArray")
         } else {
             (basePropertyName, swiftType(for: property.type))
         }
@@ -1405,7 +1405,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         // Add documentation
         if let description = command.description {
-            code += "    /// \(description.capitalizingFirstLetter())\n"
+            code += "    /// \(description.capitalisingFirstLetter())\n"
         }
 
         // Generate parameter documentation
@@ -1415,7 +1415,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 code += "    /// - Parameters:\n"
                 hasDocParams = true
             }
-            code += "    ///   - directParameter: \(description.capitalizingFirstLetter())\n"
+            code += "    ///   - directParameter: \(description.capitalisingFirstLetter())\n"
         }
 
         for param in command.parameters {
@@ -1425,12 +1425,12 @@ public typealias \(baseName)ElementArray = SBElementArray
                     hasDocParams = true
                 }
                 let paramName = param.name ?? "parameter"
-                code += "    ///   - \(swiftParameterName(paramName)): \(description.capitalizingFirstLetter())\n"
+                code += "    ///   - \(swiftParameterName(paramName)): \(description.capitalisingFirstLetter())\n"
             }
         }
 
         if let result = command.result {
-            var returnDescription = result.description?.capitalizingFirstLetter() ?? "The command result"
+            var returnDescription = result.description?.capitalisingFirstLetter() ?? "The command result"
             if let desc = result.description, desc.lowercased().hasPrefix("to the") {
                 returnDescription = "A reference " + desc
             }
@@ -1579,7 +1579,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         // Add documentation if available
         if let description = command.description {
-            code += "    /// \(description.capitalizingFirstLetter())\n"
+            code += "    /// \(description.capitalisingFirstLetter())\n"
         }
 
         // Generate parameter documentation
@@ -1589,7 +1589,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 code += "    /// - Parameters:\n"
                 hasDocParams = true
             }
-            code += "    ///   - directParameter: \(description.capitalizingFirstLetter())\n"
+            code += "    ///   - directParameter: \(description.capitalisingFirstLetter())\n"
         }
 
         for param in command.parameters {
@@ -1599,12 +1599,12 @@ public typealias \(baseName)ElementArray = SBElementArray
                     hasDocParams = true
                 }
                 let paramName = param.name ?? "parameter"
-                code += "    ///   - \(swiftParameterName(paramName)): \(description.capitalizingFirstLetter())\n"
+                code += "    ///   - \(swiftParameterName(paramName)): \(description.capitalisingFirstLetter())\n"
             }
         }
 
         if let result = command.result {
-            var returnDescription = result.description?.capitalizingFirstLetter() ?? "The command result"
+            var returnDescription = result.description?.capitalisingFirstLetter() ?? "The command result"
             if let desc = result.description, desc.lowercased().hasPrefix("to the") {
                 returnDescription = "A reference " + desc
             }
@@ -2004,7 +2004,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 processedWords.append(upperWord)
             } else {
                 // Subsequent words should be capitalized
-                processedWords.append(cleanWord.capitalizingFirstLetter())
+                processedWords.append(cleanWord.capitalisingFirstLetter())
             }
         }
 
@@ -2058,7 +2058,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 processedWords.append(cleanWord.lowercased())
             } else {
                 // Subsequent words should be capitalized
-                processedWords.append(cleanWord.capitalizingFirstLetter())
+                processedWords.append(cleanWord.capitalisingFirstLetter())
             }
         }
 
@@ -2088,7 +2088,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 processedWords.append(upperWord)
             } else {
                 // All words should be capitalized for type names
-                processedWords.append(cleanWord.capitalizingFirstLetter())
+                processedWords.append(cleanWord.capitalisingFirstLetter())
             }
         }
 
@@ -2200,7 +2200,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 elementClassName = "\(elementClassName)Protocol"
             }
             let elementTypeName = "\(baseName).\(elementClassName)"
-            let untypedMethodName = "untyped" + methodName.capitalizingFirstLetter()
+            let untypedMethodName = "untyped" + methodName.capitalisingFirstLetter()
 
             code += """
 
@@ -2223,7 +2223,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
             // The untyped property name must match the protocol property name (which uses original SDEF name)
             let protocolPropertyName = swiftPropertyName(property.name)
-            let untypedPropertyName = "untyped" + protocolPropertyName.capitalizingFirstLetter()
+            let untypedPropertyName = "untyped" + protocolPropertyName.capitalisingFirstLetter()
             let baseTypeName = swiftNamespacedTypeName(property.type.baseType)
 
             // Check if this is an enum type
@@ -2395,7 +2395,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             .replacingOccurrences(of: "-", with: "")
             .replacingOccurrences(of: "_", with: "")
 
-        return cleaned.lowercaseFirstLetter()
+        return cleaned.lowercasingFirstLetter()
     }
 
     private func formatEnumeratorCode(_ code: String) -> String {
@@ -2531,7 +2531,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         """
 
         if let description = enumeration.description {
-            code += "    /// \(description.capitalizingFirstLetter())\n"
+            code += "    /// \(description.capitalisingFirstLetter())\n"
         }
 
         code += "    @objc public enum \(enumName): AEKeyword, Sendable {\n"
@@ -2542,7 +2542,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         for enumerator in enumeration.enumerators {
             if let description = enumerator.description {
-                code += "        /// \(description.capitalizingFirstLetter())\n"
+                code += "        /// \(description.capitalisingFirstLetter())\n"
             }
 
             let caseName = swiftCaseName(enumerator.name)
@@ -2742,71 +2742,9 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         // Capitalize each word and remove spaces
         let words = transformed.components(separatedBy: " ")
-        let capitalized = words.map { $0.capitalizingFirstLetter() }.joined()
+        let capitalized = words.map { $0.capitalisingFirstLetter() }.joined()
 
         // Convert to camelCase (first letter lowercase)
-        return capitalized.lowercaseFirstLetter()
-    }
-}
-
-/// Errors that can occur during Swift code generation.
-///
-/// These errors indicate problems encountered while transforming SDEF model data
-/// into Swift source code, such as unsupported type definitions or invalid
-/// naming conventions that cannot be mapped to valid Swift identifiers.
-public enum SDEFCodeGenerationError: Error {
-    /// An unsupported SDEF type was encountered that cannot be mapped to Swift
-    case unsupportedType(String)
-
-    /// An invalid identifier name was found that cannot be converted to valid Swift
-    case invalidIdentifier(String)
-
-    /// A structural problem in the SDEF model prevents code generation
-    case invalidModel(String)
-}
-
-extension SDEFCodeGenerationError: LocalizedError {
-    /// A localised description of the code generation error.
-    ///
-    /// Provides detailed error messages that explain what went wrong during the
-    /// Swift code generation process. These messages are designed to help developers
-    /// understand and resolve issues with their SDEF files or generation configuration.
-    ///
-    /// - Returns: A descriptive error message suitable for display or logging
-    public var errorDescription: String? {
-        switch self {
-        case .unsupportedType(let type):
-            return "Unsupported SDEF type: \(type)"
-        case .invalidIdentifier(let identifier):
-            return "Invalid Swift identifier: \(identifier)"
-        case .invalidModel(let message):
-            return "Invalid SDEF model: \(message)"
-        }
-    }
-}
-
-// MARK: - String Extensions
-
-extension String {
-    /// Returns a copy of the string with the first character capitalised.
-    ///
-    /// This method converts the first character of the string to uppercase while
-    /// leaving the rest of the string unchanged. It's commonly used for converting
-    /// identifiers to proper Swift type names and method names.
-    ///
-    /// - Returns: A string with the first character capitalised
-    func capitalizingFirstLetter() -> String {
-        return prefix(1).uppercased() + dropFirst()
-    }
-
-    /// Returns a copy of the string with the first character in lowercase.
-    ///
-    /// This method converts the first character of the string to lowercase while
-    /// preserving the case of all other characters. It's used for generating
-    /// proper Swift property and variable names from SDEF identifiers.
-    ///
-    /// - Returns: A string with the first character in lowercase
-    func lowercaseFirstLetter() -> String {
-        return prefix(1).lowercased() + dropFirst()
+        return capitalized.lowercasingFirstLetter()
     }
 }

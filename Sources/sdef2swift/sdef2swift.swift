@@ -192,7 +192,7 @@ struct SDEFToSwift: AsyncParsableCommand {
 
         // If the baseName looks like a bundle ID (contains dots), also try just the app name
         if baseName.contains(".") {
-            let appName = DefaultSearchPaths.extractBasename(from: baseName)
+            let appName = BundleUtilities.extractBasename(from: baseName)
             candidateNames.append("\(appName).sdef")
             candidateNames.append(appName)
         }
@@ -294,7 +294,7 @@ struct SDEFToSwift: AsyncParsableCommand {
 
         // If not found by bundle ID, try by name
         if appPath == nil {
-            let appName = DefaultSearchPaths.extractBasename(from: bundleIdentifier)
+            let appName = BundleUtilities.extractBasename(from: bundleIdentifier)
             for searchPath in searchPaths {
                 let candidatePath = "\(searchPath)/\(appName).app"
                 if FileManager.default.fileExists(atPath: candidatePath) {
