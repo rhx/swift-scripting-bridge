@@ -1336,12 +1336,18 @@ public typealias \(baseName)ElementArray = SBElementArray
     }
 
     private func generateApplicationFunction(bundleIdentifier: String) -> String {
-        // Check if the SDEF model defines an Application class
-        let hasApplicationClass = model.suites.contains { suite in
+        // Check if the SDEF model defines an Application class (either in suites or standardClasses)
+        let hasApplicationClassInSuites = model.suites.contains { suite in
             suite.classes.contains { sdefClass in
                 sdefClass.name.lowercased() == "application"
             }
         }
+
+        let hasApplicationClassInStandard = model.standardClasses.contains { sdefClass in
+            sdefClass.name.lowercased() == "application"
+        }
+
+        let hasApplicationClass = hasApplicationClassInSuites || hasApplicationClassInStandard
 
         guard hasApplicationClass else {
             // If there's no Application class defined, don't generate the function
