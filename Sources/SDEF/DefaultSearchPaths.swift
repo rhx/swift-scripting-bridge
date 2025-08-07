@@ -56,6 +56,15 @@ public struct DefaultSearchPaths {
     /// - Parameter bundleIdentifier: The bundle identifier
     /// - Returns: The extracted basename
     public static func extractBasename(from bundleIdentifier: String) -> String {
-        bundleIdentifier.split(separator: ".").last.map(String.init) ?? bundleIdentifier
+        let basename = bundleIdentifier.split(separator: ".").last.map(String.init) ?? bundleIdentifier
+        return swiftTypeName(basename)
+    }
+
+    /// Convert a name to proper Swift type name format
+    /// - Parameter name: The name to convert
+    /// - Returns: A name suitable for Swift type naming (capitalised first letter)
+    public static func swiftTypeName(_ name: String) -> String {
+        guard !name.isEmpty else { return name }
+        return name.prefix(1).uppercased() + name.dropFirst()
     }
 }

@@ -44,7 +44,7 @@ struct GenerateScriptingInterface: BuildToolPlugin {
             let components = fullName.split(separator: ".")
             if components.count > 1, let firstChar = components.first?.first, firstChar.isLowercase {
                 bundleIdentifier = fullName  // Save the full name as bundle identifier
-                baseName = String(components.last!)
+                baseName = swiftTypeName(String(components.last!))
             } else {
                 bundleIdentifier = nil
                 baseName = fullName
@@ -125,5 +125,13 @@ struct GenerateScriptingInterface: BuildToolPlugin {
         }
 
         return commands
+    }
+
+    /// Convert a name to proper Swift type name format
+    /// - Parameter name: The name to convert
+    /// - Returns: A name suitable for Swift type naming (capitalised first letter)
+    private func swiftTypeName(_ name: String) -> String {
+        guard !name.isEmpty else { return name }
+        return name.prefix(1).uppercased() + name.dropFirst()
     }
 }

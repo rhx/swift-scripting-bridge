@@ -1,6 +1,6 @@
 import CalendarScripting
 
-guard let app = iCal.application else { fatalError("Could not access Calendar") }
+guard let app = ICal.application else { fatalError("Could not access Calendar") }
 print("Got \(app.calendars.count) calendars")
 
 if let firstCalendar = app.calendars.first {
