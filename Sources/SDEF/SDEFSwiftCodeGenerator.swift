@@ -1175,7 +1175,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                     for parameter in command.parameters {
                         if parameter.name?.lowercased() == "saving" {
                             // Found the saving parameter, now convert its type to Swift
-                            let swiftTypeName = swiftNamespacedTypeName(parameter.type.baseType)
+                            let swiftTypeName = swiftUnprefixedTypeName(parameter.type.baseType)
                             return "\(baseName).\(swiftTypeName)"
                         }
                     }
@@ -1737,79 +1737,28 @@ public typealias \(baseName)ElementArray = SBElementArray
         return false
     }
 
-    private func swiftTypeName(_ objcType: String) -> String {
-        // Handle dotted type references (e.g., "text.ctxt" should map to "Text")
-        let typeToProcess = if objcType.contains(".") {
-            // For dotted types like "text.ctxt", use just the first part as the type name
-            String(objcType.split(separator: ".").first ?? "")
-        } else {
-            objcType
+    private func swiftUnprefixedTypeName(_ objcType: String) -> String {
+        swiftTypeName(objcType, prefixWithBaseName: false)
+    }
+
+    private func swiftTypeName(_ objcType: String, prefixWithBaseName: Bool = true) -> String {
+        if let swiftType = objcType.typeName {
+            return swiftType
         }
 
-        switch typeToProcess.lowercased() {
-        case "text", "string":
-            // If original type was "text.ctxt" or similar, it refers to a Text class, not a String
-            if objcType.contains(".") {
-                return "Text"
-            } else {
-                return "String"
-            }
-        case "integer", "int":
-            return "Int"
-        case "real", "double":
-            return "Double"
-        case "boolean", "bool":
-            return "Bool"
-        case "date":
-            return "Date"
-        case "file", "alias":
-            return "URL"
-        case "record":
-            return "[String: Any]"
-        case "any":
-            return "Any"
-        case "missing value":
-            return "NSNull"
-        case "rectangle":
-            return "NSRect"
-        case "number":
-            return "NSNumber"
-        case "point":
-            return "NSPoint"
-        case "size":
-            return "NSSize"
-        case "specifier":
-            return "SBObject"
-        case "location specifier":
-            return "SBObject"
-        case "type":
-            return "OSType"
-        case "picture":
-            return "NSImage"
-        case "enum":
-            return "OSType"
-        case "double integer":
-            return "Int64"
-        default:
-            // Check if it's an enumeration type
-            let cleanType = typeToProcess.swiftClassName
-            if enumerationNames.contains(cleanType) {
-                // It's an enum - use namespace
-                return "\(baseName).\(cleanType)"
-            } else {
-                // It's a class name - use namespaced protocol name
-                // If the class name conflicts with the namespace name, add "Protocol" suffix
-                if cleanType == baseName {
-                    return "\(baseName).\(cleanType)Protocol"
-                } else {
-                    return "\(baseName).\(cleanType)"
-                }
-            }
+        // Check if it's an enumeration type
+        let cleanType = objcType.baseType.swiftClassName
+        let prefix = prefixWithBaseName ? baseName + "." : ""
+        let typeName = if enumerationNames.contains(cleanType) || cleanType != baseName {
+            cleanType
+        } else { // The class name conflicts with the namespace name, add "Protocol" suffix
+            cleanType + "Protocol"
         }
+        return prefix + typeName
     }
 
     private func swiftNamespacedType(for propertyType: SDEFPropertyType) -> String {
-        var baseType = swiftNamespacedTypeName(propertyType.baseType)
+        var baseType = swiftUnprefixedTypeName(propertyType.baseType)
 
         if propertyType.isList {
             baseType = "[\(baseType)]"
@@ -1818,77 +1767,6 @@ public typealias \(baseName)ElementArray = SBElementArray
         // For @objc optional properties, never make types optional to avoid double optionals
         // The @objc optional already provides the optionality
         return baseType
-    }
-
-    private func swiftNamespacedTypeName(_ objcType: String) -> String {
-        // Handle dotted type references (e.g., "text.ctxt" should map to "Text")
-        let typeToProcess = if objcType.contains(".") {
-            // For dotted types like "text.ctxt", use just the first part as the type name
-            String(objcType.split(separator: ".").first ?? "")
-        } else {
-            objcType
-        }
-
-        switch typeToProcess.lowercased() {
-        case "text", "string":
-            // If original type was "text.ctxt" or similar, it refers to a Text class, not a String
-            if objcType.contains(".") {
-                return "Text"
-            } else {
-                return "String"
-            }
-        case "integer", "int":
-            return "Int"
-        case "real", "double":
-            return "Double"
-        case "boolean", "bool":
-            return "Bool"
-        case "date":
-            return "Date"
-        case "file", "alias":
-            return "URL"
-        case "record":
-            return "[String: Any]"
-        case "any":
-            return "Any"
-        case "missing value":
-            return "NSNull"
-        case "rectangle":
-            return "NSRect"
-        case "number":
-            return "NSNumber"
-        case "point":
-            return "NSPoint"
-        case "size":
-            return "NSSize"
-        case "specifier":
-            return "SBObject"
-        case "location specifier":
-            return "SBObject"
-        case "type":
-            return "OSType"
-        case "picture":
-            return "NSImage"
-        case "enum":
-            return "OSType"
-        case "double integer":
-            return "Int64"
-        default:
-            // Check if it's an enumeration type
-            let cleanType = typeToProcess.swiftClassName
-            if enumerationNames.contains(cleanType) {
-                // It's an enum - reference within the same namespace
-                return cleanType
-            } else {
-                // It's a class name - reference within the same namespace
-                // If the class name conflicts with the namespace name, add "Protocol" suffix
-                if cleanType == baseName {
-                    return "\(cleanType)Protocol"
-                } else {
-                    return cleanType
-                }
-            }
-        }
     }
 
     private func generateStronglyTypedExtensions() -> String {
@@ -2020,7 +1898,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             // The untyped property name must match the protocol property name (which uses original SDEF name)
             let protocolPropertyName = property.name.swiftPropertyName
             let untypedPropertyName = "untyped" + protocolPropertyName.capitalisedFirstLetter
-            let baseTypeName = swiftNamespacedTypeName(property.type.baseType)
+            let baseTypeName = swiftUnprefixedTypeName(property.type.baseType)
 
             // Check if this is an enum type
             let allEnumNames = model.suites.flatMap { $0.enumerations }.map { $0.name.swiftClassName }
@@ -2106,7 +1984,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             }
 
             // For property aliases in extensions, we need to use the correct type references
-            let baseTypeName = swiftNamespacedTypeName(property.type.baseType)
+            let baseTypeName = swiftUnprefixedTypeName(property.type.baseType)
 
             // Only prefix with namespace for class types, not basic types
             var swiftType: String

@@ -9,7 +9,7 @@ import Foundation
 
 // MARK: - Swift Naming Extensions
 
-extension String {
+extension StringProtocol {
     /// A Swift type name by capitalising the first letter.
     ///
     /// This computed property transforms strings into proper Swift type names by ensuring the first
@@ -17,9 +17,8 @@ extension String {
     /// commonly used for converting bundle identifiers and SDEF class names to Swift types.
     ///
     /// - Returns: A string suitable for Swift type naming (capitalised first letter)
-    @usableFromInline
-    var asSwiftTypeName: String {
-        guard !isEmpty else { return self }
+    @usableFromInline var asSwiftTypeName: String {
+        guard !isEmpty else { return String(self) }
         return prefix(1).uppercased() + dropFirst()
     }
 
@@ -30,9 +29,8 @@ extension String {
     /// identifiers to proper Swift type names and method names.
     ///
     /// - Returns: A string with the first character capitalised
-    @usableFromInline
-    var capitalisedFirstLetter: String {
-        guard !isEmpty else { return self }
+    @usableFromInline var capitalisedFirstLetter: String {
+        guard !isEmpty else { return String(self) }
         return prefix(1).uppercased() + dropFirst()
     }
 
@@ -43,9 +41,8 @@ extension String {
     /// proper Swift property and variable names from SDEF identifiers.
     ///
     /// - Returns: A string with the first character in lowercase
-    @usableFromInline
-    var lowercasedFirstLetter: String {
-        guard !isEmpty else { return self }
+    @usableFromInline var lowercasedFirstLetter: String {
+        guard !isEmpty else { return String(self) }
         return prefix(1).lowercased() + dropFirst()
     }
 
@@ -56,13 +53,12 @@ extension String {
     /// Special acronyms like URL, ID, UUID are handled appropriately.
     ///
     /// - Returns: A camelCase property name suitable for Swift properties
-    @usableFromInline
-    var swiftPropertyName: String {
+    @usableFromInline var swiftPropertyName: String {
         // Split by spaces, hyphens, and underscores
         let words = components(separatedBy: CharacterSet(charactersIn: " -_"))
             .filter { !$0.isEmpty }
 
-        guard !words.isEmpty else { return escapedReservedKeyword }
+        guard !words.isEmpty else { return String(escapedReservedKeyword) }
 
         // Process each word
         var processedWords: [String] = []
@@ -105,13 +101,12 @@ extension String {
     /// Special acronyms are handled appropriately.
     ///
     /// - Returns: A camelCase method name suitable for Swift methods
-    @usableFromInline
-    var swiftMethodName: String {
+    @usableFromInline var swiftMethodName: String {
         // Split by spaces, hyphens, and underscores
         let words = components(separatedBy: CharacterSet(charactersIn: " -_"))
             .filter { !$0.isEmpty }
 
-        guard !words.isEmpty else { return self }
+        guard !words.isEmpty else { return String(self) }
 
         // Process each word
         var processedWords: [String] = []
@@ -146,13 +141,12 @@ extension String {
     /// Special acronyms are handled appropriately.
     ///
     /// - Returns: A PascalCase class name suitable for Swift types
-    @usableFromInline
-    var swiftClassName: String {
+    @usableFromInline var swiftClassName: String {
         // Split by spaces, hyphens, and underscores
         let words = components(separatedBy: CharacterSet(charactersIn: " -_"))
             .filter { !$0.isEmpty }
 
-        guard !words.isEmpty else { return self }
+        guard !words.isEmpty else { return String(self) }
 
         // Process each word by capitalising first letter
         var processedWords: [String] = []
@@ -183,9 +177,8 @@ extension String {
     /// and wraps it in backticks if necessary to make it a valid Swift identifier.
     ///
     /// - Returns: The string wrapped in backticks if it's a reserved keyword, unchanged otherwise
-    @usableFromInline
-    var escapedReservedKeyword: String {
-        let swiftKeywords = [
+    @usableFromInline var escapedReservedKeyword: Self {
+        let swiftKeywords: [Self] = [
             "associatedtype", "class", "deinit", "enum", "extension", "fileprivate", "func",
             "import", "init", "inout", "internal", "let", "open", "operator", "private",
             "protocol", "public", "rethrows", "static", "struct", "subscript", "typealias",
@@ -214,8 +207,7 @@ extension String {
     /// an underscore to ensure validity.
     ///
     /// - Returns: A sanitised string suitable for use as a Swift identifier
-    @usableFromInline
-    var sanitisedCommandCode: String {
+    @usableFromInline var sanitisedCommandCode: String {
         let sanitised = replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: "*", with: "Star")
             .replacingOccurrences(of: "/", with: "Slash")
@@ -237,10 +229,9 @@ extension String {
     /// The result is escaped if it conflicts with Swift reserved keywords.
     ///
     /// - Returns: A camelCase parameter name suitable for Swift code
-    @usableFromInline
-    var swiftParameterName: String {
+    @usableFromInline var swiftParameterName: String {
         let components = split(separator: " ")
-        guard !components.isEmpty else { return self }
+        guard !components.isEmpty else { return String(self) }
 
         var result = String(components[0]).lowercased()
         for component in components.dropFirst() {
@@ -257,10 +248,9 @@ extension String {
     /// Objective-C selectors don't require escaping.
     ///
     /// - Returns: A camelCase parameter name suitable for Objective-C selectors
-    @usableFromInline
-    var objcParameterName: String {
+    @usableFromInline var objcParameterName: String {
         let components = split(separator: " ")
-        guard !components.isEmpty else { return self }
+        guard !components.isEmpty else { return String(self) }
 
         var result = String(components[0]).lowercased()
         for component in components.dropFirst() {
@@ -276,8 +266,7 @@ extension String {
     /// This creates valid Swift enumeration case names.
     ///
     /// - Returns: A lowercase name suitable for Swift enumeration cases
-    @usableFromInline
-    var swiftCaseName: String {
+    @usableFromInline var swiftCaseName: String {
         let cleaned = replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: "-", with: "")
             .replacingOccurrences(of: "_", with: "")
@@ -291,8 +280,7 @@ extension String {
     /// It handles various input formats and ensures consistent output.
     ///
     /// - Returns: A properly formatted hexadecimal code string
-    @usableFromInline
-    var formattedEnumeratorCode: String {
+    @usableFromInline var formattedEnumeratorCode: String {
         // Convert 4-character codes to proper format
         if count == 4 {
             let chars = Array(self)
@@ -305,7 +293,7 @@ extension String {
 
         // Handle other code formats
         if hasPrefix("0x") || allSatisfy({ $0.isHexDigit }) {
-            return hasPrefix("0x") ? self : "0x\(self)"
+            return hasPrefix("0x") ? String(self) : "0x\(self)"
         }
         return "'\(self)'"
     }
@@ -317,8 +305,7 @@ extension String {
     ///
     /// - Parameter name: The original class name from the SDEF
     /// - Returns: A properly formatted Swift enum case name
-    @usableFromInline
-    var asEnumCase: String {
+    @usableFromInline var asEnumCase: String {
         // Remove quotes and replace hyphens with spaces
         let transformed =
         replacingOccurrences(of: "\"", with: "")
@@ -330,5 +317,71 @@ extension String {
 
         // Convert to camelCase (first letter lowercase)
         return capitalised.lowercasedFirstLetter
+    }
+
+    /// Return the base type for the receiver.
+    ///
+    /// This property returns the first component
+    /// of a dotted type (or the while type if there is no '.').
+    ///
+    /// - Returns: First component of the dotted type.
+    @usableFromInline var baseType: String {
+        guard let baseType = split(separator: ".").first else {
+            return String(self)
+        }
+        return String(baseType)
+    }
+
+    /// Transform an SDEF type name into a proper Swift type name.
+    ///
+    /// This property returns a Swift type name for the receiver,
+    /// or `nil` if the type is not recognised.
+    ///
+    /// - Returns: A properly formatted Swift type name or `nil` if the type is not recognised.
+    @usableFromInline var typeName: String? {
+        switch baseType.lowercased() {
+        case "text", "string":
+            // If original type was "text.ctxt" or similar, it refers to a Text class,
+            // not a String
+            contains(".") ? "Text" : "String"
+        case "integer", "int":
+            "Int"
+        case "real", "double":
+            "Double"
+        case "boolean", "bool":
+            "Bool"
+        case "date":
+            "Date"
+        case "file", "alias":
+            "URL"
+        case "record":
+            "[String: Any]"
+        case "any":
+            "Any"
+        case "missing value":
+            "NSNull"
+        case "rectangle":
+            "NSRect"
+        case "number":
+            "NSNumber"
+        case "point":
+            "NSPoint"
+        case "size":
+            "NSSize"
+        case "specifier":
+            "SBObject"
+        case "location specifier":
+            "SBObject"
+        case "type":
+            "OSType"
+        case "picture":
+            "NSImage"
+        case "enum":
+            "OSType"
+        case "double integer":
+            "Int64"
+        default:
+            nil
+        }
     }
 }
