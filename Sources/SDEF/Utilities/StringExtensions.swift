@@ -142,30 +142,11 @@ extension StringProtocol {
     ///
     /// - Returns: A PascalCase class name suitable for Swift types
     @usableFromInline var swiftClassName: String {
-        // First, handle special characters that need replacement
-        let cleanedString = replacingOccurrences(of: "#", with: "Hash")
-            .replacingOccurrences(of: "&", with: "And")
-            .replacingOccurrences(of: "+", with: "Plus")
-            .replacingOccurrences(of: "=", with: "Equals")
-            .replacingOccurrences(of: "(", with: "")
-            .replacingOccurrences(of: ")", with: "")
-            .replacingOccurrences(of: "/", with: "Or")
-            .replacingOccurrences(of: "\\", with: "")
-            .replacingOccurrences(of: "*", with: "Star")
-            .replacingOccurrences(of: "?", with: "")
-            .replacingOccurrences(of: "!", with: "")
-            .replacingOccurrences(of: "@", with: "At")
-            .replacingOccurrences(of: "%", with: "Percent")
-            .replacingOccurrences(of: "^", with: "")
-            .replacingOccurrences(of: "~", with: "")
-            .replacingOccurrences(of: "`", with: "")
-            .replacingOccurrences(of: "|", with: "Or")
-
         // Split by spaces, hyphens, and underscores
-        let words = cleanedString.components(separatedBy: CharacterSet(charactersIn: " -_"))
+        let words = transformedIdentifier.components(separatedBy: CharacterSet(charactersIn: " -_"))
             .filter { !$0.isEmpty }
 
-        guard !words.isEmpty else { return String(cleanedString) }
+        guard !words.isEmpty else { return transformedIdentifier }
 
         // Process each word by capitalising first letter
         var processedWords: [String] = []
@@ -286,10 +267,21 @@ extension StringProtocol {
     ///
     /// - Returns: A lowercase name suitable for Swift enumeration cases
     @usableFromInline var swiftCaseName: String {
-        let cleaned = replacingOccurrences(of: " ", with: "")
+        let cleaned = transformedIdentifier
+            .replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: "-", with: "")
             .replacingOccurrences(of: "_", with: "")
-            .replacingOccurrences(of: "&", with: "And")
+        return cleaned.lowercasedFirstLetter
+    }
+
+    /// Transforms the string by replacing special characters with Swift-compatible alternatives.
+    ///
+    /// This computed property handles common special characters that aren't valid in Swift identifiers
+    /// by replacing them with appropriate word equivalents or removing them entirely.
+    ///
+    /// - Returns: A string with special characters replaced or removed
+    @usableFromInline var transformedIdentifier: String {
+        replacingOccurrences(of: "&", with: "And")
             .replacingOccurrences(of: "#", with: "Hash")
             .replacingOccurrences(of: "+", with: "Plus")
             .replacingOccurrences(of: "=", with: "Equals")
@@ -306,7 +298,6 @@ extension StringProtocol {
             .replacingOccurrences(of: "~", with: "")
             .replacingOccurrences(of: "`", with: "")
             .replacingOccurrences(of: "|", with: "Or")
-        return cleaned.lowercasedFirstLetter
     }
 
     /// Format four-character codes to proper hexadecimal representation.
@@ -342,26 +333,10 @@ extension StringProtocol {
     /// - Parameter name: The original class name from the SDEF
     /// - Returns: A properly formatted Swift enum case name
     @usableFromInline var asEnumCase: String {
-        // Remove quotes and replace special characters with spaces or appropriate replacements
+        // Remove quotes and replace hyphens with spaces, then apply character transformations
         let transformed = replacingOccurrences(of: "\"", with: "")
             .replacingOccurrences(of: "-", with: " ")
-            .replacingOccurrences(of: "&", with: "And")
-            .replacingOccurrences(of: "#", with: "Hash")
-            .replacingOccurrences(of: "+", with: "Plus")
-            .replacingOccurrences(of: "=", with: "Equals")
-            .replacingOccurrences(of: "(", with: "")
-            .replacingOccurrences(of: ")", with: "")
-            .replacingOccurrences(of: "/", with: "Or")
-            .replacingOccurrences(of: "\\", with: "")
-            .replacingOccurrences(of: "*", with: "Star")
-            .replacingOccurrences(of: "?", with: "")
-            .replacingOccurrences(of: "!", with: "")
-            .replacingOccurrences(of: "@", with: "At")
-            .replacingOccurrences(of: "%", with: "Percent")
-            .replacingOccurrences(of: "^", with: "")
-            .replacingOccurrences(of: "~", with: "")
-            .replacingOccurrences(of: "`", with: "")
-            .replacingOccurrences(of: "|", with: "Or")
+            .transformedIdentifier
 
         // Capitalise each word and remove spaces
         let words = transformed.components(separatedBy: " ")
