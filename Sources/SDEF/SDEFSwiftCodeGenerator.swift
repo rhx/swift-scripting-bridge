@@ -1791,13 +1791,6 @@ public typealias \(baseName)ElementArray = SBElementArray
         case "double integer":
             return "Int64"
         default:
-            // Check if it's a known record-type first (record-types aren't parsed yet)
-            let knownRecordTypes = ["print settings", "RGB color", "location reference"]
-            if knownRecordTypes.contains(objcType.lowercased()) {
-                // It's a record type - use dictionary
-                return "[String: Any]"
-            }
-
             // Check if it's an enumeration type
             let cleanType = typeToProcess.swiftClassName
             if enumerationNames.contains(cleanType) {

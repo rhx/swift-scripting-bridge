@@ -373,8 +373,10 @@ private extension SDEFParser {
 
     func parseClasses(from element: XMLElement) throws -> [SDEFClass] {
         let classElements = try element.nodes(forXPath: ".//class")
+        let recordTypeElements = try element.nodes(forXPath: ".//record-type")
         var classes: [SDEFClass] = []
 
+        // Parse regular class elements
         for classNode in classElements {
             guard let classElement = classNode as? XMLElement else { continue }
 
@@ -385,7 +387,43 @@ private extension SDEFParser {
             classes.append(sdefClass)
         }
 
+        // Parse record-type elements as classes
+        for recordNode in recordTypeElements {
+            guard let recordElement = recordNode as? XMLElement else { continue }
+
+            let isHidden = recordElement.attribute(forName: "hidden")?.stringValue == "yes"
+            if isHidden && !includeHidden { continue }
+
+            let sdefClass = try parseRecordType(from: recordElement)
+            classes.append(sdefClass)
+        }
+
         return classes
+    }
+
+    func parseRecordType(from element: XMLElement) throws -> SDEFClass {
+        let name = element.attribute(forName: "name")?.stringValue ?? ""
+        let code = element.attribute(forName: "code")?.stringValue ?? ""
+        let description = element.attribute(forName: "description")?.stringValue
+        let inherits = element.attribute(forName: "inherits")?.stringValue
+        let isHidden = element.attribute(forName: "hidden")?.stringValue == "yes"
+
+        let properties = try parseProperties(from: element)
+        // Record types don't have elements, responds-to, or class extensions
+        let elements: [SDEFElement] = []
+        let respondsTo: [String] = []
+
+        return SDEFClass(
+            name: name,
+            pluralName: nil, // Record types don't have plural names
+            code: code,
+            description: description,
+            inherits: inherits,
+            properties: properties,
+            elements: elements,
+            respondsTo: respondsTo,
+            isHidden: isHidden
+        )
     }
 
     func parseClass(from element: XMLElement) throws -> SDEFClass {
