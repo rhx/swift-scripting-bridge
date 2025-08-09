@@ -1916,7 +1916,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             } else {
                 // For protocol/class arrays, simple cast should work
                 // Only prefix with namespace for class types, not basic types
-                let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "[String: Any]", "Any", "NSNull", "NSRect", "NSNumber", "NSPoint", "NSSize", "SBObject"]
+                let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "[String: Any]", "Any", "NSNull", "NSRect", "NSNumber", "NSPoint", "NSSize", "SBObject", "SBElementArray", "NSData"]
                 let typeName = if basicTypes.contains(baseTypeName) {
                     baseTypeName
                 } else {
@@ -1986,7 +1986,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
             // Only prefix with namespace for class types, not basic types
             var swiftType: String
-            let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "[String: Any]", "Any", "NSNull", "NSRect", "NSNumber", "NSPoint", "NSSize", "SBObject"]
+            let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "[String: Any]", "Any", "NSNull", "NSRect", "NSNumber", "NSPoint", "NSSize", "SBObject", "SBElementArray", "NSData"]
             if basicTypes.contains(baseTypeName) {
                 swiftType = baseTypeName
             } else {

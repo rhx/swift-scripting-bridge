@@ -142,11 +142,30 @@ extension StringProtocol {
     ///
     /// - Returns: A PascalCase class name suitable for Swift types
     @usableFromInline var swiftClassName: String {
+        // First, handle special characters that need replacement
+        let cleanedString = replacingOccurrences(of: "#", with: "Hash")
+            .replacingOccurrences(of: "&", with: "And")
+            .replacingOccurrences(of: "+", with: "Plus")
+            .replacingOccurrences(of: "=", with: "Equals")
+            .replacingOccurrences(of: "(", with: "")
+            .replacingOccurrences(of: ")", with: "")
+            .replacingOccurrences(of: "/", with: "Or")
+            .replacingOccurrences(of: "\\", with: "")
+            .replacingOccurrences(of: "*", with: "Star")
+            .replacingOccurrences(of: "?", with: "")
+            .replacingOccurrences(of: "!", with: "")
+            .replacingOccurrences(of: "@", with: "At")
+            .replacingOccurrences(of: "%", with: "Percent")
+            .replacingOccurrences(of: "^", with: "")
+            .replacingOccurrences(of: "~", with: "")
+            .replacingOccurrences(of: "`", with: "")
+            .replacingOccurrences(of: "|", with: "Or")
+
         // Split by spaces, hyphens, and underscores
-        let words = components(separatedBy: CharacterSet(charactersIn: " -_"))
+        let words = cleanedString.components(separatedBy: CharacterSet(charactersIn: " -_"))
             .filter { !$0.isEmpty }
 
-        guard !words.isEmpty else { return String(self) }
+        guard !words.isEmpty else { return String(cleanedString) }
 
         // Process each word by capitalising first letter
         var processedWords: [String] = []
@@ -270,6 +289,23 @@ extension StringProtocol {
         let cleaned = replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: "-", with: "")
             .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "&", with: "And")
+            .replacingOccurrences(of: "#", with: "Hash")
+            .replacingOccurrences(of: "+", with: "Plus")
+            .replacingOccurrences(of: "=", with: "Equals")
+            .replacingOccurrences(of: "(", with: "")
+            .replacingOccurrences(of: ")", with: "")
+            .replacingOccurrences(of: "/", with: "Or")
+            .replacingOccurrences(of: "\\", with: "")
+            .replacingOccurrences(of: "*", with: "Star")
+            .replacingOccurrences(of: "?", with: "")
+            .replacingOccurrences(of: "!", with: "")
+            .replacingOccurrences(of: "@", with: "At")
+            .replacingOccurrences(of: "%", with: "Percent")
+            .replacingOccurrences(of: "^", with: "")
+            .replacingOccurrences(of: "~", with: "")
+            .replacingOccurrences(of: "`", with: "")
+            .replacingOccurrences(of: "|", with: "Or")
         return cleaned.lowercasedFirstLetter
     }
 
@@ -306,10 +342,26 @@ extension StringProtocol {
     /// - Parameter name: The original class name from the SDEF
     /// - Returns: A properly formatted Swift enum case name
     @usableFromInline var asEnumCase: String {
-        // Remove quotes and replace hyphens with spaces
-        let transformed =
-        replacingOccurrences(of: "\"", with: "")
+        // Remove quotes and replace special characters with spaces or appropriate replacements
+        let transformed = replacingOccurrences(of: "\"", with: "")
             .replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: "&", with: "And")
+            .replacingOccurrences(of: "#", with: "Hash")
+            .replacingOccurrences(of: "+", with: "Plus")
+            .replacingOccurrences(of: "=", with: "Equals")
+            .replacingOccurrences(of: "(", with: "")
+            .replacingOccurrences(of: ")", with: "")
+            .replacingOccurrences(of: "/", with: "Or")
+            .replacingOccurrences(of: "\\", with: "")
+            .replacingOccurrences(of: "*", with: "Star")
+            .replacingOccurrences(of: "?", with: "")
+            .replacingOccurrences(of: "!", with: "")
+            .replacingOccurrences(of: "@", with: "At")
+            .replacingOccurrences(of: "%", with: "Percent")
+            .replacingOccurrences(of: "^", with: "")
+            .replacingOccurrences(of: "~", with: "")
+            .replacingOccurrences(of: "`", with: "")
+            .replacingOccurrences(of: "|", with: "Or")
 
         // Capitalise each word and remove spaces
         let words = transformed.components(separatedBy: " ")
@@ -380,6 +432,31 @@ extension StringProtocol {
             "OSType"
         case "double integer":
             "Int64"
+        case "list":
+            "SBElementArray"
+        case "property":
+            "SBObject"
+        // Legacy Mac icon resource types - map to NSData for binary data
+        case "icn#", "icnhash":
+            "NSData"
+        case "ics#", "icshash":
+            "NSData"
+        case "l8mk":
+            "NSData"
+        case "il32":
+            "NSData"
+        case "icl8":
+            "NSData"
+        case "icl4":
+            "NSData"
+        case "s8mk":
+            "NSData"
+        case "is32":
+            "NSData"
+        case "ics8":
+            "NSData"
+        case "ics4":
+            "NSData"
         default:
             nil
         }
