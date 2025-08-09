@@ -22,7 +22,7 @@
 /// a mechanism for adding suite-specific functionality without modifying the original class
 /// definitions. This promotes reusability and maintains clean separation of responsibilities
 /// across the scripting interface.
-public struct SDEFSuite: Codable {
+public struct SDEFSuite: Codable, Sendable {
     /// The human-readable name of this scripting suite.
     ///
     /// This name identifies the suite in documentation and scripting dictionaries.

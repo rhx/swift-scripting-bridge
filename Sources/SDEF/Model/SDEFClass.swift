@@ -23,7 +23,7 @@
 /// system, enabling precise object type resolution and command routing. The class may also specify
 /// whether it should be hidden from normal scripting use, which is useful for internal or
 /// deprecated object types.
-public struct SDEFClass: Codable {
+public struct SDEFClass: Codable, Sendable {
     /// The singular name of this class.
     ///
     /// This name is used in scripting dictionaries and code generation
@@ -130,7 +130,7 @@ public struct SDEFClass: Codable {
 /// might extend the standard document class with text-specific properties like character
 /// count or formatting options. The extension mechanism ensures that these additions don't
 /// interfere with the base class definition and can coexist with extensions from other suites.
-public struct SDEFClassExtension: Codable {
+public struct SDEFClassExtension: Codable, Sendable {
     /// The name of the class being extended.
     ///
     /// This must match the name of an existing class defined in the same

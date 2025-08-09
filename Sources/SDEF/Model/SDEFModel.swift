@@ -21,7 +21,7 @@
 /// Standard classes from CocoaStandard.sdef are maintained separately to allow proper inheritance and
 /// extension mechanisms, where application-specific classes can extend standard behaviour without
 /// duplicating definitions.
-public struct SDEFModel: Codable {
+public struct SDEFModel: Codable, Sendable {
     /// The scripting suites contained within this SDEF model.
     ///
     /// Each suite represents a logical grouping of related scripting functionality,

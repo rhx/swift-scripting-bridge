@@ -17,7 +17,7 @@
 /// The structure preserves both the original reference URL and the processed model,
 /// allowing the code generator to create appropriate imports and references in the
 /// final Swift output.
-public struct SDEFInclude: Codable {
+public struct SDEFInclude: Codable, Sendable {
     /// The original href URL from the xi:include directive.
     ///
     /// This typically points to system-level SDEF files such as

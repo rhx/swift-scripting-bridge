@@ -19,7 +19,7 @@
 /// optional named parameters that modify the command's behaviour or provide additional data.
 /// This flexible parameter system enables commands to handle complex operations while maintaining
 /// clear and consistent interfaces for script authors.
-public struct SDEFCommand: Codable {
+public struct SDEFCommand: Codable, Sendable {
     /// The human-readable name of this command.
     ///
     /// This name is used in scripting dictionaries and code generation to
@@ -109,7 +109,7 @@ public struct SDEFCommand: Codable {
 /// that the command receives well-formed inputs. Parameters may be marked as optional,
 /// allowing commands to have flexible interfaces that can accommodate different usage
 /// patterns while maintaining type safety.
-public struct SDEFParameter: Codable {
+public struct SDEFParameter: Codable, Sendable {
     /// The name of this parameter, or nil for direct parameters.
     ///
     /// Named parameters use this identifier in command invocations,

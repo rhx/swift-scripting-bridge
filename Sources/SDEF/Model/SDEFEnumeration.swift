@@ -19,7 +19,7 @@
 /// system maps human-readable symbolic names to the underlying codes used in Apple Event
 /// communication, making scripts more readable and maintainable while preserving the
 /// precise semantics required by the Apple Event system.
-public struct SDEFEnumeration: Codable {
+public struct SDEFEnumeration: Codable, Sendable {
     /// The name of this enumeration type.
     ///
     /// This name is used in scripting dictionaries and code generation
@@ -91,7 +91,7 @@ public struct SDEFEnumeration: Codable {
 /// different representation formats used by various parts of the scripting infrastructure.
 /// This flexibility ensures that enumeration values can be used effectively across
 /// different contexts while maintaining consistent semantics.
-public struct SDEFEnumerator: Codable {
+public struct SDEFEnumerator: Codable, Sendable {
     /// The name of this constant value.
     ///
     /// This symbolic name provides a human-readable identifier for the constant

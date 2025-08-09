@@ -19,7 +19,7 @@
 /// the expected data format, and access permissions that may restrict operations to
 /// read-only, write-only, or full read-write access. Properties may also include
 /// Cocoa key names that enable better integration with modern Swift naming conventions.
-public struct SDEFProperty: Codable {
+public struct SDEFProperty: Codable, Sendable {
     /// The human-readable name of this property.
     ///
     /// This name is used in scripting dictionaries and code generation
@@ -108,7 +108,7 @@ public struct SDEFProperty: Codable {
 /// definition may include a Cocoa key path that specifies how to access the collection in the
 /// underlying implementation, enabling efficient bridging between the scripting interface and
 /// the application's internal object model.
-public struct SDEFElement: Codable {
+public struct SDEFElement: Codable, Sendable {
     /// The name of the class type that can be contained as an element.
     ///
     /// This must match the name of a class defined in the SDEF, specifying
@@ -152,7 +152,7 @@ public struct SDEFElement: Codable {
 /// types and accessor methods, ensuring type safety and providing clear interfaces for
 /// scripting interactions. The type specification also supports rich documentation that
 /// helps users understand the expected data format and constraints.
-public struct SDEFPropertyType: Codable {
+public struct SDEFPropertyType: Codable, Sendable {
     /// The fundamental data type for this property.
     ///
     /// This string specifies the base type that the property can hold,
