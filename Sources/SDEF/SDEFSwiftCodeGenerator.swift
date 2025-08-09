@@ -95,7 +95,7 @@ public final class SDEFSwiftCodeGenerator {
         import Foundation
         import ScriptingBridge
         import AppKit
-        
+
         """
 
         // Check if we have a Standard Suite in the SDEF
@@ -103,7 +103,7 @@ public final class SDEFSwiftCodeGenerator {
 
         // Generate foundation protocols - always prefixed to avoid conflicts between different SDEF files
         code += """
-        
+
         /// Protocol for ScriptingBridge Objects.
         ///
         /// This protocol defines the basic functionality for ScriptingBridge objects.
@@ -111,7 +111,7 @@ public final class SDEFSwiftCodeGenerator {
             func get() -> Any!
         }
         extension SBObject: \(baseName)SBObjectProtocol {}
-        
+
         /// Protocol for ScriptingBridge Applications.
         ///
         /// This protocol defines the basic functionality for ScriptingBridge applications
@@ -124,16 +124,16 @@ public final class SDEFSwiftCodeGenerator {
         }
 
         code += """
-        
+
         @objc public protocol \(baseName)SBApplicationProtocol: \(baseName)SBObjectProtocol {
             // MARK: - Core Application Methods
-        
+
             /// Activate the application, bringing it to the foreground.
             func activate()
-        
+
             /// The application's delegate for handling Scripting Bridge events.
             var delegate: SBApplicationDelegate! { get set }
-        
+
             /// Whether the application is currently running.
             var isRunning: Bool { get }
         """
@@ -141,48 +141,48 @@ public final class SDEFSwiftCodeGenerator {
         // Only add hard-coded standard commands if there's no Standard Suite in the SDEF
         if !hasStandardSuite {
             code += """
-        
+
             // MARK: - Standard Suite Commands
-        
+
             /// Open the specified object(s).
             /// - Parameters:
             ///   - objects: List of objects to open
             ///   - using: The application file to open the object with (optional)
             ///   - withProperties: Initial values for properties (optional)
             @objc optional func open(_ objects: Any!, using: Any?, withProperties: [String: Any]?)
-        
+
             /// Print the specified object(s).
             /// - Parameters:
             ///   - objects: List of objects to print
             ///   - withProperties: Optional properties for the print command
             @objc optional func print(_ objects: Any!, withProperties: [String: Any]?)
-        
+
             /// Quit the application.
             @objc(quit) optional func sbQuit()
-        
+
             /// Close the specified object.
             /// - Parameter object: The object to close
             @objc(close:) optional func sbClose(_ object: SBObject?)
-        
+
             /// Return the number of elements of a particular class within an object.
             /// - Parameters:
             ///   - object: The object whose elements are to be counted
             ///   - each: The class of elements to count
             /// - Returns: The number of elements
             @objc optional func count(_ object: Any!, each: Any!) -> Int
-        
+
             /// Return the size in bytes of an object.
             /// - Parameters:
             ///   - object: The object whose data size is to be returned
             ///   - as: The data type for which the size is calculated (optional)
             /// - Returns: The size of the object in bytes
             @objc optional func dataSize(_ object: Any!, as: Any?) -> Int
-        
+
             /// Move an item from its container to the trash.
             /// - Parameter object: The item to delete
             /// - Returns: The item that was just deleted
             @objc(delete:) optional func deleteObject(_ object: Any!) -> Any!
-        
+
             /// Duplicate one or more object(s).
             /// - Parameters:
             ///   - objects: The object(s) to duplicate
@@ -192,12 +192,12 @@ public final class SDEFSwiftCodeGenerator {
             ///   - exactCopy: Whether to copy permissions/ownership as is (optional)
             /// - Returns: The duplicated object(s)
             @objc(duplicate:to:replacing:routingSuppressed:exactCopy:) optional func sbDuplicate(_ objects: Any!, to: Any?, replacing: Bool, routingSuppressed: Bool, exactCopy: Bool) -> Any!
-        
+
             /// Verify if an object exists.
             /// - Parameter object: The object in question
             /// - Returns: True if it exists, false if not
             @objc(exists:) optional func sbExists(_ object: Any!) -> Bool
-        
+
             /// Make a new element.
             /// - Parameters:
             ///   - new: The class of the new element
@@ -206,7 +206,7 @@ public final class SDEFSwiftCodeGenerator {
             ///   - withProperties: Initial values for properties (optional)
             /// - Returns: The new object(s)
             @objc optional func make(new: Any!, at: Any!, to: Any?, withProperties: [String: Any]?) -> Any!
-        
+
             /// Move object(s) to a new location.
             /// - Parameters:
             ///   - objects: The object(s) to move
@@ -216,7 +216,7 @@ public final class SDEFSwiftCodeGenerator {
             ///   - routingSuppressed: Whether to suppress autorouting (optional)
             /// - Returns: The object(s) after they have been moved
             @objc(move:to:replacing:positionedAt:routingSuppressed:) optional func sbMove(_ objects: Any!, to: Any!, replacing: Bool, positionedAt: [Any]?, routingSuppressed: Bool) -> Any!
-        
+
             /// Select the specified object(s).
             /// - Parameter object: The object to select
             @objc(select:) optional func sbSelect(_ object: Any!)
@@ -250,9 +250,9 @@ public final class SDEFSwiftCodeGenerator {
         }
 
         code += """
-        
+
         }
-        
+
         """
         if !hasStandardSuite {
             code += """
@@ -272,7 +272,7 @@ public final class SDEFSwiftCodeGenerator {
                func open(objects: SBElementArray, using application: Any? = nil, with properties: [String: Any]? = nil) -> Bool {
                    open?(objects, using: application, withProperties: properties) != nil
                }
-           
+
                /// Print the specified object(s).
                /// - Parameters:
                ///   - objects: List of objects to print
@@ -283,7 +283,7 @@ public final class SDEFSwiftCodeGenerator {
                func print(_ objects: SBElementArray? = nil, with properties: [String: Any]? = nil) -> Bool {
                    print?(objects, withProperties: properties) != nil
                }
-           
+
                /// Quit the application.
                /// - Returns: `true` if the `quit` message could be sent successfully
                @inlinable
@@ -291,7 +291,7 @@ public final class SDEFSwiftCodeGenerator {
                func quit() -> Bool {
                    sbQuit?() != nil
                }
-           
+
                /// Close the specified object.
                /// - Parameter object: The object to close
                /// - Returns: `true` if the `close` message could be sent successfully
@@ -300,7 +300,7 @@ public final class SDEFSwiftCodeGenerator {
                func close(_ object: SBObject) -> Bool {
                    sbClose?(object) != nil
                }
-           
+
                /// Return the number of elements of a particular class within an object.
                /// - Parameters:
                ///   - object: The object whose elements are to be counted
@@ -310,7 +310,7 @@ public final class SDEFSwiftCodeGenerator {
                func count(_ object: SBObject, ofKind kind: SBObject? = nil) -> Int? {
                    count?(object, each: kind)
                }
-           
+
                /// Return the size in bytes of an object.
                /// - Parameters:
                ///   - object: The object whose data size is to be returned
@@ -320,7 +320,7 @@ public final class SDEFSwiftCodeGenerator {
                func dataSize(of object: SBObject, as dataType: SBObject? = nil) -> Int? {
                    dataSize?(object, as: dataType)
                }
-           
+
                /// Move an item from its container to the trash.
                ///
                /// This method removes an item from its container to the trash.
@@ -331,7 +331,7 @@ public final class SDEFSwiftCodeGenerator {
                func delete(_ object: SBObject) -> SBObject! {
                    deleteObject?(object) as? SBObject
                }
-           
+
                /// Duplicate one or more object(s).
                ///
                /// This method duplicates one or more object(s) in the receiver.
@@ -347,7 +347,7 @@ public final class SDEFSwiftCodeGenerator {
                func duplicate(_ objects: Any!, to: Any? = false, replacing: Bool = false, routingSuppressed: Bool = false, exactCopy: Bool = false) -> Any! {
                    sbDuplicate?(objects, to: to, replacing: replacing, routingSuppressed: routingSuppressed, exactCopy: exactCopy)
                }
-           
+
                /// Verify if an object exists.
                ///
                /// This method checks if an object exists in the receiver.
@@ -357,7 +357,7 @@ public final class SDEFSwiftCodeGenerator {
                func exists(_ object: Any!) -> Bool? {
                    sbExists?(object)
                }
-           
+
                /// Make a new element.
                /// - Parameters:
                ///   - new: The class of the new element
@@ -370,7 +370,7 @@ public final class SDEFSwiftCodeGenerator {
                func makeNewInstance(of objectClass: SBObject, at location: SBObject!, to alias: SBObject? = nil, with properties: [String: Any]? = nil) -> Any! {
                    make?(new: objectClass, at: location, to: alias, withProperties: properties)
                }
-           
+
                /// Move object(s) to a new location.
                /// - Parameters:
                ///   - objects: The object(s) to move
@@ -384,7 +384,7 @@ public final class SDEFSwiftCodeGenerator {
                func move(_ objects: Any!, to: Any!, replacing: Bool, positionedAt: [Any]?, routingSuppressed: Bool) -> Any! {
                    sbMove?(objects, to: to, replacing: replacing, positionedAt: positionedAt, routingSuppressed: routingSuppressed)
                }
-           
+
                /// Select the specified object(s).
                /// - Parameter object: The object to select
                @inlinable
@@ -393,12 +393,12 @@ public final class SDEFSwiftCodeGenerator {
                    sbSelect?(object) != nil
                }
            }
-           
+
            """
         }
         code += """
         extension SBApplication: \(baseName)SBApplicationProtocol {}
-        
+
         """
 
 
@@ -568,9 +568,9 @@ public typealias \(baseName)ElementArray = SBElementArray
         let enumName = "\(baseName)\(enumeration.name.capitalisedFirstLetter.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "-", with: ""))"
 
         var code = """
-        
+
         // MARK: - \(enumeration.name)
-        
+
         """
 
         if let description = enumeration.description {
@@ -623,9 +623,9 @@ public typealias \(baseName)ElementArray = SBElementArray
         let protocolName = "\(baseName)\(sdefClass.name.swiftClassName)"
 
         var code = """
-        
+
         // MARK: - \(sdefClass.name)
-        
+
         """
 
         if let description = sdefClass.description {
@@ -736,15 +736,15 @@ public typealias \(baseName)ElementArray = SBElementArray
         // Generate extension - SBApplication for application classes, SBObject for others
         if sdefClass.name.lowercased() == "application" {
             code += """
-            
+
             extension SBApplication: \(protocolName) {}
-            
+
             """
         } else {
             code += """
-            
+
             extension SBObject: \(protocolName) {}
-            
+
             """
         }
 
@@ -756,11 +756,11 @@ public typealias \(baseName)ElementArray = SBElementArray
         let protocolName = "\(baseName)\(baseTypeName)"
 
         var code = """
-        
+
         // MARK: - \(classExtension.extends) Extension
-        
+
         @objc public protocol \(protocolName): SBObject {
-        
+
         """
 
         // Generate properties
@@ -799,9 +799,9 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         // Generate SBObject extension
         code += """
-        
+
         extension SBObject: \(protocolName) {}
-        
+
         """
 
         return code
@@ -816,9 +816,9 @@ public typealias \(baseName)ElementArray = SBElementArray
         }
 
         var code = """
-        
+
             // MARK: - \(sdefClass.name)
-        
+
         """
 
         if let description = sdefClass.description {
@@ -967,11 +967,11 @@ public typealias \(baseName)ElementArray = SBElementArray
         let protocolName = baseTypeName
 
         var code = """
-        
+
             // MARK: - \(classExtension.extends) Extension
-        
+
             @objc(\(baseName)\(protocolName)) public protocol \(protocolName): SBObject {
-        
+
         """
 
         // Generate properties
@@ -1199,9 +1199,9 @@ public typealias \(baseName)ElementArray = SBElementArray
         }
 
         var code = """
-        
+
         // MARK: - Generic Methods Protocol
-        
+
         @objc public protocol \(baseName)GenericMethods {
             /// Close the object.
             ///
@@ -1243,7 +1243,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             ///   - to: The location to move the object to or `nil` for the default location.
             @objc optional func moveTo(_ to: SBObject?)
         }
-        
+
         public extension \(baseName)GenericMethods {
             /// Close the object.
             ///
@@ -1304,9 +1304,9 @@ public typealias \(baseName)ElementArray = SBElementArray
                 moveTo?(destination)
             }
         }
-        
+
         // MARK: - Application Protocol
-        
+
         @objc public protocol \(baseName)ApplicationProtocol: \(applicationBaseProtocol) {
             /// Array of document objects - A document.
             @objc optional func documents() -> SBElementArray
@@ -1355,9 +1355,9 @@ public typealias \(baseName)ElementArray = SBElementArray
         }
 
         return """
-        
+
             // MARK: - Application Convenience Function
-        
+
             /// Return an instance of the application.
             ///
             /// This property creates an instance of the application using its bundle identifier
@@ -1370,11 +1370,11 @@ public typealias \(baseName)ElementArray = SBElementArray
 
     private func generateSBApplicationExtension() -> String {
         return """
-        
+
         extension SBApplication: \(baseName)ApplicationProtocol {}
-        
+
         extension SBObject: \(baseName)GenericMethods {}
-        
+
         """
     }
 
@@ -1613,7 +1613,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
         // Generate method signature with code as method name and proper @objc selector
         let methodName = command.code.sanitisedCommandCode
-        let objcSelector = buildObjCSelector(for: command)
+        let objcSelector = command.objcSelector
         code += "    @objc(\(objcSelector)) optional func \(methodName)("
 
         var paramStrings: [String] = []
@@ -1667,36 +1667,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         return code
     }
 
-    private func buildObjCSelector(for command: SDEFCommand) -> String {
-        var selector = command.name.swiftMethodName
 
-        // Add parameter labels for the selector
-        if command.directParameter != nil {
-            selector += ":"
-        }
-
-        for param in command.parameters {
-            if let paramName = param.name?.objcParameterName {
-                selector += paramName + ":"
-            }
-        }
-
-        return selector
-    }
-
-    private func defaultValue(for type: SDEFPropertyType, isOptional: Bool) -> String? {
-        let baseType = type.baseType.lowercased()
-
-        if isOptional {
-            return "nil"
-        } else if baseType == "boolean" {
-            // Non-optional Bool parameters get false as default
-            return "false"
-        }
-
-        // No default for other non-optional types
-        return nil
-    }
 
     private func swiftType(for propertyType: SDEFPropertyType) -> String {
         var baseType = swiftTypeName(propertyType.baseType)
@@ -1929,9 +1900,9 @@ public typealias \(baseName)ElementArray = SBElementArray
 
     private func generateStronglyTypedExtensions() -> String {
         var code = """
-        
+
         // MARK: - Strongly Typed Extensions
-        
+
         """
         var generatedStronglyTypedExtensions = Set<String>()
 
@@ -1992,7 +1963,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         let protocolName = "\(baseName).\(className)"
 
         var code = """
-        
+
         /// Strongly typed accessors for \(sdefClass.name)
         public extension \(protocolName) {
         """
@@ -2035,7 +2006,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             let untypedMethodName = "untyped" + methodName.capitalisedFirstLetter
 
             code += """
-            
+
                 /// Strongly typed accessor for \(element.type) elements
                 var \(pluralPropertyName): [\(elementTypeName)] {
                     \(untypedMethodName)?() as? [\(elementTypeName)] ?? []
@@ -2066,7 +2037,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 // For enum arrays, convert from SBElementArray using raw values
                 let enumTypeName = "\(baseName).\(baseTypeName)"
                 code += """
-                
+
                     /// Strongly typed accessor for \(property.name)
                     var \(basePropertyName): [\(enumTypeName)] {
                         guard let untypedArray = \(untypedPropertyName) as? [AEKeyword] else { return [] }
@@ -2089,7 +2060,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                 }
 
                 code += """
-                
+
                     /// Strongly typed accessor for \(property.name)
                     var \(basePropertyName): [\(typeName)] {
                         \(untypedPropertyName) as? [\(typeName)] ?? []
@@ -2102,9 +2073,9 @@ public typealias \(baseName)ElementArray = SBElementArray
         code += generatePropertyAliases(sdefClass)
 
         code += """
-        
+
         }
-        
+
         """
 
         return code
@@ -2203,14 +2174,14 @@ public typealias \(baseName)ElementArray = SBElementArray
                     }
 
                     code += """
-                    
+
                         /// Swift idiomatic alias for \(objcPropertyName)
                         var \(swiftPropertyName): \(returnType) { \(defaultValue) }
                     """
                 } else {
                     // Protocol type is optional, alias can be optional too
                     code += """
-                    
+
                         /// Swift idiomatic alias for \(objcPropertyName)
                         var \(swiftPropertyName): \(swiftType) { \(objcPropertyName) }
                     """
@@ -2249,24 +2220,24 @@ public typealias \(baseName)ElementArray = SBElementArray
         }
 
         return """
-        
+
             // MARK: - Save Options
-        
+
             /// Standard save options for dialogs
             @objc public enum SaveOptions: AEKeyword, Sendable {
                 case yes = 0x79657320  // 'yes '
                 case no = 0x6e6f2020   // 'no  '
                 case ask = 0x61736b20  // 'ask '
             }
-        
+
         """
     }
 
     private func generateNamespacedTypeAliases() -> String {
         var aliases = """
-        
+
             // MARK: - Type Aliases
-        
+
         """
 
         // Don't generate Application typealias when application protocol exists
@@ -2276,22 +2247,22 @@ public typealias \(baseName)ElementArray = SBElementArray
         aliases += """
             public typealias Object = SBObject
             public typealias ElementArray = SBElementArray
-        
+
             // MARK: - Common Value Types
             /// Represents an RGB color value
             public typealias RGBColor = NSColor
             /// Represents a TIFF picture
             public typealias TIFFPicture = NSImage
-        
+
         """
         return aliases
     }
 
     private func generateNamespacedClassNamesEnum() -> String {
         var code = """
-        
+
             // MARK: - Scripting Class Names
-        
+
             /// An enumeration of all scripting class names defined in the SDEF.
             ///
             /// These string constants can be used when working with the Scripting Bridge
@@ -2331,9 +2302,9 @@ public typealias \(baseName)ElementArray = SBElementArray
         let enumName = enumeration.name.swiftClassName
 
         var code = """
-        
+
             // MARK: - \(enumeration.name)
-        
+
         """
 
         if let description = enumeration.description {
@@ -2384,9 +2355,9 @@ public typealias \(baseName)ElementArray = SBElementArray
 
     private func generatePrefixedTypealiasesSection() -> String {
         var code = """
-        
+
         // MARK: - Prefixed Type Aliases (for backward compatibility)
-        
+
         """
 
         // Check if the SDEF model defines an Application class
@@ -2403,7 +2374,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         code += """
         public typealias \(baseName)Object = \(baseName).Object
         public typealias \(baseName)ElementArray = \(baseName).ElementArray
-        
+
         """
 
         // Check if we should generate SaveOptions typealias
@@ -2440,9 +2411,9 @@ public typealias \(baseName)ElementArray = SBElementArray
 
     private func generateFlatTypealiasesSection() -> String {
         var code = """
-        
+
         // MARK: - Flat Type Aliases (for use as a separate module)
-        
+
         """
 
         // Check if the SDEF model defines an Application class
@@ -2459,7 +2430,7 @@ public typealias \(baseName)ElementArray = SBElementArray
         code += """
         public typealias Object = \(baseName).Object
         public typealias ElementArray = \(baseName).ElementArray
-        
+
         """
 
         // Check if we should generate SaveOptions typealias
@@ -2512,14 +2483,14 @@ public typealias \(baseName)ElementArray = SBElementArray
         let sortedNames = classNames.sorted()
 
         var code = """
-        
+
         /// An enumeration of all scripting class names available in this application.
         ///
         /// This enum provides a type-safe way to reference all scriptable classes defined
         /// in the application's scripting dictionary. Each case corresponds to a class
         /// that can be accessed through the Scripting Bridge framework.
         public enum \(baseName)ScriptingClassNames: String, CaseIterable {
-        
+
         """
 
         for name in sortedNames {

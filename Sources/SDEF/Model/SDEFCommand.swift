@@ -167,3 +167,44 @@ public struct SDEFParameter: Codable, Sendable {
         self.isOptional = isOptional
     }
 }
+
+public extension SDEFCommand {
+    /// The Objective-C selector string for this command.
+    ///
+    /// Builds the selector by converting the command name to a Swift method name
+    /// and appending colons for each parameter. The selector format follows
+    /// Objective-C conventions where each parameter adds a colon to the selector.
+    var objcSelector: String {
+        var selector = name.swiftMethodName
+
+        // Add parameter labels for the selector
+        if directParameter != nil {
+            selector += ":"
+        }
+
+        for param in parameters {
+            if let paramName = param.name?.objcParameterName {
+                selector += paramName + ":"
+            }
+        }
+
+        return selector
+    }
+
+    /// The Swift method name for this command.
+    var swiftMethodName: String {
+        name.swiftMethodName
+    }
+}
+
+public extension SDEFParameter {
+    /// The Objective-C parameter name for this parameter.
+    var objcParameterName: String? {
+        name?.objcParameterName
+    }
+
+    /// The Swift parameter name for this parameter.
+    var swiftParameterName: String? {
+        name?.swiftParameterName
+    }
+}

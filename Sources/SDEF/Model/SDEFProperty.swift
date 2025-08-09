@@ -202,3 +202,62 @@ public struct SDEFPropertyType: Codable, Sendable {
     }
 }
 
+public extension SDEFPropertyType {
+    /// The default value for this property type in Swift code generation.
+    ///
+    /// Returns an appropriate default value string based on the type and optionality.
+    /// For optional types, returns "nil". For non-optional booleans, returns "false".
+    /// Other non-optional types have no default value (returns nil).
+    var defaultValue: String? {
+        let baseTypeLower = baseType.lowercased()
+
+        if isOptional {
+            return "nil"
+        } else if baseTypeLower == "boolean" {
+            // Non-optional Bool parameters get false as default
+            return "false"
+        }
+
+        // No default for other non-optional types
+        return nil
+    }
+}
+
+public extension SDEFProperty {
+    /// The Swift property name for this property.
+    var swiftPropertyName: String {
+        name.swiftPropertyName
+    }
+
+    /// The Swift class name for this property (used for type references).
+    var swiftClassName: String {
+        name.swiftClassName
+    }
+
+    /// The Objective-C getter selector for this property.
+    var objcGetterSelector: String {
+        // Use the Cocoa key if available, otherwise convert the name
+        if let cocoaKey {
+            return cocoaKey
+        } else {
+            return name.swiftPropertyName
+        }
+    }
+
+    /// The Objective-C setter selector for this property.
+    var objcSetterSelector: String? {
+        guard access != "r" else { return nil }
+
+        if let cocoaKey {
+            // Convert cocoaKey to setter: "name" -> "setName:"
+            let capitalizedKey = cocoaKey.prefix(1).uppercased() + cocoaKey.dropFirst()
+            return "set\(capitalizedKey):"
+        } else {
+            // Convert name to setter
+            let propertyName = name.swiftPropertyName
+            let capitalizedName = propertyName.prefix(1).uppercased() + propertyName.dropFirst()
+            return "set\(capitalizedName):"
+        }
+    }
+}
+
