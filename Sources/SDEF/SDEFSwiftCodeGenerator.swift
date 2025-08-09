@@ -6,8 +6,6 @@
 // Copyright © 2024, 2025 Rene Hexel. All rights reserved.
 //
 import Foundation
-import SwiftSyntax
-import SwiftSyntaxBuilder
 
 /// A code generator that produces Swift Scripting Bridge code from parsed SDEF models.
 ///
