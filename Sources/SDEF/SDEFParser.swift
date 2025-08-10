@@ -70,15 +70,23 @@ public final class SDEFParser {
         // First, process any XI includes to load standard definitions
         try processXIIncludes(from: rootElement)
 
-        // Ensure we have standard definitions even if there are no XI:Include elements
-        if standardClasses.isEmpty {
-            if debug {
-                print("DEBUG: No standard classes loaded, adding fallback definitions")
-            }
-            addFallbackStandardDefinitions()
-        }
-
         let suites = try parseSuites(from: rootElement)
+
+        // Ensure we have standard definitions even if there are no XI:Include elements
+        // Only add fallback definitions if this looks like a real application SDEF
+        if standardClasses.isEmpty {
+            let looksLikeApplicationSDEF = suites.contains { suite in
+                suite.classes.contains { $0.name.lowercased() == "application" } ||
+                suite.classExtensions.contains { $0.extends.lowercased() == "application" }
+            }
+
+            if looksLikeApplicationSDEF {
+                if debug {
+                    print("DEBUG: No standard classes loaded but found application-related content, adding fallback definitions")
+                }
+                addFallbackStandardDefinitions()
+            }
+        }
 
         if debug {
             print("DEBUG: About to call mergeClassExtensions")
@@ -507,7 +515,6 @@ private extension SDEFParser {
                 print("DEBUG: Processing standard classes for suite '\(suite.name)' (\(standardClasses.count) standard classes available)")
             }
             for (name, standardClass) in standardClasses {
-                let wasExtendedInThisSuite = classesExtendedByExtensions.contains(name)
                 let wasExtendedInAnySuite = suites.contains { otherSuite in
                     otherSuite.classExtensions.contains { $0.extends == name }
                 }
