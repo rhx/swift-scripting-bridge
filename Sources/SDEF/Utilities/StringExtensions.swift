@@ -131,7 +131,7 @@ extension StringProtocol {
             }
         }
 
-        return processedWords.joined()
+        return processedWords.joined().escapedReservedKeyword
     }
 
     /// A Swift class name suitable for PascalCase naming conventions.

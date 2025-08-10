@@ -21,6 +21,7 @@ public final class SDEFParser {
     private let document: XMLDocument
     private let includeHidden: Bool
     private let verbose: Bool
+    private let debug: Bool
     private let trackIncludes: Bool
     private var standardClasses: [String: SDEFClass] = [:]
     private var standardEnums: [String: SDEFEnumeration] = [:]
@@ -38,11 +39,13 @@ public final class SDEFParser {
     ///   - includeHidden: Whether to include definitions marked as hidden
     ///   - trackIncludes: Whether to track included SDEF files for recursive generation
     ///   - verbose: Whether to enable detailed logging during parsing
-    public init(document: XMLDocument, includeHidden: Bool, trackIncludes: Bool = false, verbose: Bool) {
+    ///   - debug: Whether to enable debug output during parsing
+    public init(document: XMLDocument, includeHidden: Bool, trackIncludes: Bool = false, verbose: Bool, debug: Bool = false) {
         self.document = document
         self.includeHidden = includeHidden
         self.trackIncludes = trackIncludes
         self.verbose = verbose
+        self.debug = debug
     }
 
     /// Parses the SDEF document and returns a structured model.
@@ -67,10 +70,26 @@ public final class SDEFParser {
         // First, process any XI includes to load standard definitions
         try processXIIncludes(from: rootElement)
 
+        // Ensure we have standard definitions even if there are no XI:Include elements
+        if standardClasses.isEmpty {
+            if debug {
+                print("DEBUG: No standard classes loaded, adding fallback definitions")
+            }
+            addFallbackStandardDefinitions()
+        }
+
         let suites = try parseSuites(from: rootElement)
+
+        if debug {
+            print("DEBUG: About to call mergeClassExtensions")
+        }
 
         // Merge class extensions with standard classes
         let mergedSuites = try mergeClassExtensions(suites)
+
+        if debug {
+            print("DEBUG: mergeClassExtensions completed")
+        }
 
         return SDEFModel(suites: mergedSuites, standardClasses: Array(standardClasses.values), includes: processedIncludes)
     }
@@ -279,9 +298,20 @@ private extension SDEFParser {
     func mergeClassExtensions(_ suites: [SDEFSuite]) throws -> [SDEFSuite] {
         var mergedSuites: [SDEFSuite] = []
 
+        if debug {
+            print("DEBUG: mergeClassExtensions called with \(suites.count) suites")
+            for suite in suites {
+                print("DEBUG: Suite '\(suite.name)' has \(suite.classes.count) classes")
+                for sdefClass in suite.classes {
+                    print("DEBUG:   Class: '\(sdefClass.name)'")
+                }
+            }
+        }
+
         for suite in suites {
             var mergedClasses = suite.classes
             var allEnums = suite.enumerations
+            var mergedWithStandardClasses: Set<String> = []
 
             // Add standard enums that aren't already present
             for (name, standardEnum) in standardEnums {
@@ -290,25 +320,164 @@ private extension SDEFParser {
                 }
             }
 
+            // Skip Standard Suite application class if a suite-specific application class exists
+            // This prevents duplicate Application protocols
+            if suite.name == "Standard Suite" {
+                let hasApplicationClassInLaterSuite = suites.contains { otherSuite in
+                    otherSuite.name != "Standard Suite" &&
+                    otherSuite.classes.contains { $0.name == "application" }
+                }
+
+                if hasApplicationClassInLaterSuite {
+                    if debug {
+                        print("DEBUG: Removing 'application' class from Standard Suite as it will be overridden by suite-specific class")
+                    }
+                    mergedClasses = mergedClasses.filter { $0.name != "application" }
+                }
+            }
+
+            // Merge suite-specific classes with standard classes (inheritance)
+            for i in 0..<mergedClasses.count {
+                let sdefClass = mergedClasses[i]
+
+                // If this class exists in standard classes, merge them (inheritance)
+                if let standardClass = standardClasses[sdefClass.name] {
+                    if debug {
+                        print("DEBUG: Merging suite class '\(sdefClass.name)' with standard class")
+                        print("DEBUG: Standard class has \(standardClass.elements.count) elements, \(standardClass.properties.count) properties")
+                        print("DEBUG: Suite class has \(sdefClass.elements.count) elements, \(sdefClass.properties.count) properties")
+                    }
+
+                    // Deduplicate properties and elements by name
+                    var mergedProperties = standardClass.properties
+                    let existingPropertyNames = Set(standardClass.properties.map { $0.name })
+                    for suiteProperty in sdefClass.properties {
+                        if !existingPropertyNames.contains(suiteProperty.name) {
+                            mergedProperties.append(suiteProperty)
+                        }
+                    }
+
+                    var mergedElements = standardClass.elements
+                    let existingElementTypes = Set(standardClass.elements.map { $0.type })
+                    for suiteElement in sdefClass.elements {
+                        if !existingElementTypes.contains(suiteElement.type) {
+                            mergedElements.append(suiteElement)
+                        }
+                    }
+
+                    let mergedClass = SDEFClass(
+                        name: sdefClass.name,
+                        pluralName: sdefClass.pluralName ?? standardClass.pluralName,
+                        code: sdefClass.code.isEmpty ? standardClass.code : sdefClass.code,
+                        description: sdefClass.description ?? standardClass.description,
+                        inherits: sdefClass.inherits ?? standardClass.inherits,
+                        properties: mergedProperties,
+                        elements: mergedElements,
+                        respondsTo: standardClass.respondsTo + sdefClass.respondsTo,
+                        isHidden: sdefClass.isHidden
+                    )
+
+                    if debug {
+                        print("DEBUG: Merged class has \(mergedClass.elements.count) elements, \(mergedClass.properties.count) properties")
+                    }
+
+                    mergedClasses[i] = mergedClass
+                    mergedWithStandardClasses.insert(sdefClass.name)
+                }
+            }
+
             // Process class extensions
+            if debug && !suite.classExtensions.isEmpty {
+                print("DEBUG: Processing \(suite.classExtensions.count) class extensions for suite '\(suite.name)'")
+            }
             for classExtension in suite.classExtensions {
                 let extendedClassName = classExtension.extends
+                if debug {
+                    print("DEBUG: Processing class extension extending '\(extendedClassName)' in suite '\(suite.name)'")
+                }
 
-                // Check if we have a standard class to extend
-                if let standardClass = standardClasses[extendedClassName] {
+                // First check if we're extending a class already in this suite
+                if let existingClassIndex = mergedClasses.firstIndex(where: { $0.name.lowercased() == extendedClassName.lowercased() }) {
+                    // Merge with existing class in this suite
+                    let existingClass = mergedClasses[existingClassIndex]
+                    if debug {
+                        print("DEBUG: Merging class extension for '\(extendedClassName)' with existing class '\(existingClass.name)'")
+                        print("DEBUG: Existing class has \(existingClass.elements.count) elements, \(existingClass.properties.count) properties")
+                        print("DEBUG: Extension adds \(classExtension.elements.count) elements, \(classExtension.properties.count) properties")
+                    }
+                    // Deduplicate properties and elements by name
+                    var mergedProperties = existingClass.properties
+                    let existingPropertyNames = Set(existingClass.properties.map { $0.name })
+                    for extensionProperty in classExtension.properties {
+                        if !existingPropertyNames.contains(extensionProperty.name) {
+                            mergedProperties.append(extensionProperty)
+                        }
+                    }
+
+                    var mergedElements = existingClass.elements
+                    let existingElementTypes = Set(existingClass.elements.map { $0.type })
+                    for extensionElement in classExtension.elements {
+                        if !existingElementTypes.contains(extensionElement.type) {
+                            mergedElements.append(extensionElement)
+                        }
+                    }
+
+                    let mergedClass = SDEFClass(
+                        name: existingClass.name,
+                        pluralName: existingClass.pluralName,
+                        code: existingClass.code,
+                        description: existingClass.description ?? classExtension.properties.first?.description,
+                        inherits: existingClass.inherits,
+                        properties: mergedProperties,
+                        elements: mergedElements,
+                        respondsTo: existingClass.respondsTo + classExtension.respondsTo,
+                        isHidden: existingClass.isHidden
+                    )
+                    if debug {
+                        print("DEBUG: Merged class has \(mergedClass.elements.count) elements, \(mergedClass.properties.count) properties")
+                    }
+                    mergedClasses[existingClassIndex] = mergedClass
+                } else if let standardClass = standardClasses[extendedClassName] {
+                    // Check if we have a standard class to extend
                     // Create merged class with standard properties + extension properties
+                    if debug {
+                        print("DEBUG: Creating extended class for '\(extendedClassName)' from standard class")
+                        print("DEBUG: Standard class has \(standardClass.elements.count) elements, \(standardClass.properties.count) properties")
+                        print("DEBUG: Extension adds \(classExtension.elements.count) elements, \(classExtension.properties.count) properties")
+                    }
+                    // Deduplicate properties and elements by name
+                    var mergedProperties = standardClass.properties
+                    let existingPropertyNames = Set(standardClass.properties.map { $0.name })
+                    for extensionProperty in classExtension.properties {
+                        if !existingPropertyNames.contains(extensionProperty.name) {
+                            mergedProperties.append(extensionProperty)
+                        }
+                    }
+
+                    var mergedElements = standardClass.elements
+                    let existingElementTypes = Set(standardClass.elements.map { $0.type })
+                    for extensionElement in classExtension.elements {
+                        if !existingElementTypes.contains(extensionElement.type) {
+                            mergedElements.append(extensionElement)
+                        }
+                    }
+
                     let mergedClass = SDEFClass(
                         name: standardClass.name,
                         pluralName: standardClass.pluralName,
                         code: standardClass.code,
                         description: standardClass.description,
                         inherits: standardClass.inherits,
-                        properties: standardClass.properties + classExtension.properties,
-                        elements: standardClass.elements + classExtension.elements,
+                        properties: mergedProperties,
+                        elements: mergedElements,
                         respondsTo: standardClass.respondsTo + classExtension.respondsTo,
                         isHidden: standardClass.isHidden
                     )
+                    if debug {
+                        print("DEBUG: Extended class has \(mergedClass.elements.count) elements, \(mergedClass.properties.count) properties")
+                    }
                     mergedClasses.append(mergedClass)
+                    mergedWithStandardClasses.insert(extendedClassName)
                 } else {
                     // Create a new class from the extension
                     let newClass = SDEFClass(
@@ -323,6 +492,39 @@ private extension SDEFParser {
                         isHidden: false
                     )
                     mergedClasses.append(newClass)
+                }
+            }
+
+            // Track which classes were extended by class-extensions in this suite
+            var classesExtendedByExtensions: Set<String> = []
+            for classExtension in suite.classExtensions {
+                classesExtendedByExtensions.insert(classExtension.extends)
+            }
+
+            // Add remaining standard classes that weren't merged with suite-specific classes
+            // and weren't extended by class-extensions in any suite
+            if debug {
+                print("DEBUG: Processing standard classes for suite '\(suite.name)' (\(standardClasses.count) standard classes available)")
+            }
+            for (name, standardClass) in standardClasses {
+                let wasExtendedInThisSuite = classesExtendedByExtensions.contains(name)
+                let wasExtendedInAnySuite = suites.contains { otherSuite in
+                    otherSuite.classExtensions.contains { $0.extends == name }
+                }
+
+                if debug {
+                    print("DEBUG: Checking standard class '\(name)' for suite '\(suite.name)': mergedWithStandard=\(mergedWithStandardClasses.contains(name)), hasInSuite=\(mergedClasses.contains(where: { $0.name == name })), wasExtended=\(wasExtendedInAnySuite)")
+                }
+
+                if !mergedWithStandardClasses.contains(name) &&
+                   !mergedClasses.contains(where: { $0.name == name }) &&
+                   !wasExtendedInAnySuite {
+                    if debug {
+                        print("DEBUG: Adding unmerged standard class '\(name)' to suite '\(suite.name)'")
+                    }
+                    mergedClasses.append(standardClass)
+                } else if debug {
+                    print("DEBUG: Skipping standard class '\(name)' in suite '\(suite.name)' (merged=\(mergedWithStandardClasses.contains(name)), hasInSuite=\(mergedClasses.contains(where: { $0.name == name })), wasExtended=\(wasExtendedInAnySuite))")
                 }
             }
 
@@ -351,10 +553,18 @@ private extension SDEFParser {
             print("Parsing suite: \(name)")
         }
 
+        if debug {
+            print("DEBUG: parseSuite '\(name)' - looking for class-extension elements")
+        }
+
         let classes = try parseClasses(from: element)
         let enumerations = try parseEnumerations(from: element)
         let commands = try parseCommands(from: element)
         let classExtensions = try parseClassExtensions(from: element)
+
+        if debug {
+            print("DEBUG: parseSuite '\(name)' found \(classExtensions.count) class extensions")
+        }
 
         if verbose {
             print("Suite '\(name)' has \(commands.count) commands")
@@ -455,6 +665,20 @@ private extension SDEFParser {
         let extensionElements = try element.nodes(forXPath: ".//class-extension")
         var extensions: [SDEFClassExtension] = []
 
+        if debug {
+            print("DEBUG: parseClassExtensions called - element name: '\(element.name ?? "nil")'")
+            print("DEBUG: parseClassExtensions XPath './/class-extension' found \(extensionElements.count) elements")
+            // Try alternative XPath expressions
+            do {
+                let altElements1 = try element.nodes(forXPath: "./class-extension")
+                print("DEBUG: XPath './class-extension' found \(altElements1.count) elements")
+                let altElements2 = try element.nodes(forXPath: "class-extension")
+                print("DEBUG: XPath 'class-extension' found \(altElements2.count) elements")
+            } catch {
+                print("DEBUG: Alternative XPath failed: \(error)")
+            }
+        }
+
         for extensionNode in extensionElements {
             guard let extensionElement = extensionNode as? XMLElement else { continue }
 
@@ -462,6 +686,10 @@ private extension SDEFParser {
             let properties = try parseProperties(from: extensionElement)
             let elements = try parseElements(from: extensionElement)
             let respondsTo = try parseRespondsTo(from: extensionElement)
+
+            if debug {
+                print("DEBUG: Found class-extension extending '\(extends)' with \(elements.count) elements, \(properties.count) properties")
+            }
 
             let classExtension = SDEFClassExtension(
                 extends: extends,

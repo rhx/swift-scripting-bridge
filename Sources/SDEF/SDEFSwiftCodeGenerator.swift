@@ -462,11 +462,11 @@ public final class SDEFSwiftCodeGenerator {
                 // Check if we already generated a protocol for this class name
                 let className = sdefClass.name.lowercased()
 
-                // Skip if we already generated this class from another suite (prevent duplicates)
+                // Simply skip if we already generated this class from another suite (prevent duplicates)
                 let alreadyGenerated = generatedClassNames.contains(className)
 
                 if debug && alreadyGenerated {
-                    print("DEBUG: Skipping duplicate class '\(sdefClass.name)' from suite '\(suite.name)'")
+                    print("DEBUG: Skipping duplicate class '\(sdefClass.name)' from suite '\(suite.name)' (already generated)")
                 }
 
                 if !alreadyGenerated {

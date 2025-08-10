@@ -100,7 +100,7 @@ public final class SDEFSwiftGenerator {
         }
 
         // Create the parser and parse the model
-        let parser = SDEFParser(document: xmlDocument, includeHidden: includeHidden, trackIncludes: shouldGenerateRecursively, verbose: verbose)
+        let parser = SDEFParser(document: xmlDocument, includeHidden: includeHidden, trackIncludes: shouldGenerateRecursively, verbose: verbose, debug: debug)
         let sdefModel: SDEFModel
         do {
             sdefModel = try parser.parse()
