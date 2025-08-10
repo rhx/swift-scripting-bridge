@@ -7,6 +7,14 @@
 //
 import Foundation
 
+// MARK: - Constants
+
+/// Basic Swift types that don't require special property wrapper handling
+public let basicSwiftTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "NSNumber", "NSRect", "NSPoint", "NSSize"]
+
+/// Extended basic types including ScriptingBridge types for alias generation
+public let extendedBasicSwiftTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "[String: Any]", "Any", "NSNull", "NSRect", "NSNumber", "NSPoint", "NSSize", "SBObject", "SBElementArray", "NSData"]
+
 // MARK: - Swift Naming Extensions
 
 extension StringProtocol {
@@ -146,7 +154,7 @@ extension StringProtocol {
         let words = transformedIdentifier.components(separatedBy: CharacterSet(charactersIn: " -_"))
             .filter { !$0.isEmpty }
 
-        guard !words.isEmpty else { return transformedIdentifier }
+        guard !words.isEmpty else { return swiftCaseName }
 
         // Process each word by capitalising first letter
         var processedWords: [String] = []

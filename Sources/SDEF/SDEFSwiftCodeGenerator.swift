@@ -1031,13 +1031,15 @@ public typealias \(baseName)ElementArray = SBElementArray
         let objcName = property.name.swiftPropertyName
 
         // Check if this is a non-primitive type that needs special handling
-        let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "NSNumber", "NSRect", "NSPoint", "NSSize"]
-        let needsSeparateMethods = !basicTypes.contains(swiftType) && !property.type.isList
+        let needsSeparateMethods = !basicSwiftTypes.contains(swiftType) && !property.type.isList
 
         if needsSeparateMethods {
             // Generate separate getter and setter methods using the property code
             // to avoid naming conflicts with the Swift convenience property
-            let methodBaseName = property.code.capitalisedFirstLetter
+            // Use both code and property name to ensure uniqueness
+            let codeBaseName = property.code.swiftClassName
+            let nameBaseName = String(property.name.swiftClassName.replacingOccurrences(of: " ", with: ""))
+            let methodBaseName = "\(codeBaseName)\(nameBaseName)"
 
             // Always generate getter if not write-only
             if property.access != "w" {
@@ -1178,13 +1180,15 @@ public typealias \(baseName)ElementArray = SBElementArray
         let objcName = property.name.swiftPropertyName
 
         // Check if this is a non-primitive type that needs special handling
-        let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "NSNumber", "NSRect", "NSPoint", "NSSize"]
-        let needsSeparateMethods = !basicTypes.contains(swiftType) && !property.type.isList
+        let needsSeparateMethods = !basicSwiftTypes.contains(swiftType) && !property.type.isList
 
         if needsSeparateMethods {
             // Generate separate getter and setter methods using the property code
             // to avoid naming conflicts with the Swift convenience property
-            let methodBaseName = property.code.capitalisedFirstLetter
+            // Use both code and property name to ensure uniqueness
+            let codeBaseName = property.code.swiftClassName
+            let nameBaseName = String(property.name.swiftClassName.replacingOccurrences(of: " ", with: ""))
+            let methodBaseName = "\(codeBaseName)\(nameBaseName)"
 
             // Always generate getter if not write-only
             if property.access != "w" {
@@ -1893,8 +1897,7 @@ public typealias \(baseName)ElementArray = SBElementArray
             guard !property.type.isList else { continue }
 
             let swiftType = swiftType(for: property.type)
-            let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "NSNumber", "NSRect", "NSPoint", "NSSize"]
-            let needsPropertyWrapper = !basicTypes.contains(swiftType)
+            let needsPropertyWrapper = !basicSwiftTypes.contains(swiftType)
 
             if needsPropertyWrapper {
                 // Use cocoa key if available, otherwise use the property name
@@ -1905,7 +1908,10 @@ public typealias \(baseName)ElementArray = SBElementArray
                 }
 
                 // Use the property code for method names to avoid conflicts
-                let methodBaseName = property.code.capitalisedFirstLetter
+                // Use both code and property name to ensure uniqueness
+                let codeBaseName = property.code.swiftClassName
+                let nameBaseName = property.name.swiftClassName.replacingOccurrences(of: " ", with: "")
+                let methodBaseName = "\(codeBaseName)\(nameBaseName)"
 
                 // Determine the type name with proper namespace
                 let typeName = if swiftType == baseName || model.suites.flatMap({ $0.classes }).contains(where: { $0.name.swiftClassName == swiftType }) {
@@ -2080,6 +2086,13 @@ public typealias \(baseName)ElementArray = SBElementArray
             // Skip if they're the same (no alias needed)
             guard objcPropertyName != swiftPropertyName else { continue }
 
+            // Skip if this is a non-primitive type (already handled in property wrapper generation)
+            let swiftType = swiftType(for: property.type)
+            if !basicSwiftTypes.contains(swiftType) && !property.type.isList {
+                // Non-primitive type - already has a property wrapper generated
+                continue
+            }
+
             // Check if the alias name would conflict with existing protocol properties
             // by looking for properties with the same name across all classes
             let aliasNameConflicts = model.suites.flatMap { $0.classes }.contains { otherClass in
@@ -2100,16 +2113,15 @@ public typealias \(baseName)ElementArray = SBElementArray
             let baseTypeName = swiftUnprefixedTypeName(property.type.baseType)
 
             // Only prefix with namespace for class types, not basic types
-            var swiftType: String
-            let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "[String: Any]", "Any", "NSNull", "NSRect", "NSNumber", "NSPoint", "NSSize", "SBObject", "SBElementArray", "NSData"]
-            if basicTypes.contains(baseTypeName) {
-                swiftType = baseTypeName
+            var aliasSwiftType: String
+            if extendedBasicSwiftTypes.contains(baseTypeName) {
+                aliasSwiftType = baseTypeName
             } else {
                 // If the class name conflicts with the namespace name, add "Protocol" suffix
                 if baseTypeName == baseName {
-                    swiftType = "\(baseName).\(baseTypeName)Protocol"
+                    aliasSwiftType = "\(baseName).\(baseTypeName)Protocol"
                 } else {
-                    swiftType = "\(baseName).\(baseTypeName)"
+                    aliasSwiftType = "\(baseName).\(baseTypeName)"
                 }
             }
 
@@ -2124,7 +2136,7 @@ public typealias \(baseName)ElementArray = SBElementArray
 
                 // For non-optional protocol types, provide sensible defaults if underlying property might be nil
                 if !protocolPropertyType.hasSuffix("?") {
-                    let defaultValue = switch swiftType {
+                    let defaultValue = switch aliasSwiftType {
                     case "String":
                         "\(objcPropertyName) ?? \"\""
                     case "Int":
@@ -2141,20 +2153,20 @@ public typealias \(baseName)ElementArray = SBElementArray
                         "\(objcPropertyName) ?? NSNumber(value: 0)"
                     default:
                         // For enum and complex types, check if we can provide a reasonable default
-                        if swiftType.contains(".") {
+                        if aliasSwiftType.contains(".") {
                             // For complex types, use implicitly unwrapped optional to avoid crashes
                             // This allows users to check for nil if needed while maintaining type compatibility
                             objcPropertyName
                         } else {
-                            "\(objcPropertyName) ?? \(swiftType)()"
+                            "\(objcPropertyName) ?? \(aliasSwiftType)()"
                         }
                     }
 
                     // For complex types that could be nil, use implicitly unwrapped optional return type
-                    let returnType = if swiftType.contains(".") && defaultValue == objcPropertyName {
-                        "\(swiftType)!"
+                    let returnType = if aliasSwiftType.contains(".") && defaultValue == objcPropertyName {
+                        "\(aliasSwiftType)!"
                     } else {
-                        swiftType
+                        aliasSwiftType
                     }
 
                     code += """
@@ -2167,7 +2179,7 @@ public typealias \(baseName)ElementArray = SBElementArray
                     code += """
 
                         /// Swift idiomatic alias for \(objcPropertyName)
-                        var \(swiftPropertyName): \(swiftType) { \(objcPropertyName) }
+                        var \(swiftPropertyName): \(aliasSwiftType) { \(objcPropertyName) }
                     """
                 }
             }
