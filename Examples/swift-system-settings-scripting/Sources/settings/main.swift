@@ -38,6 +38,6 @@ if let activePane = app.currentPane {
 //
 //try? await Task.sleep(nanoseconds: 3_000_000_000)
 //
-//app.windows.forEach { window in
-//    window.close()
-//}
+app.windows.forEach { window in
+    window.close()
+}

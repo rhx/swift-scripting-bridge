@@ -355,11 +355,11 @@ if let isShared = firstNote.isShared {
 if let body = firstNote.body {
     print(body)
 }
-if !(app.isActive ?? false) {
+if !app.isActive {
     app.activate()
 }
 app.windows.forEach { window in
-    window.closeSaving?(.no, savingIn: nil)
+    window.close(saving: .no) // saving can also be omitted (defaults to `.ask`)
 }
 ```
 
@@ -385,7 +385,7 @@ import ScriptingBridge
 @main
 struct NotesMain {
     static func main() {
-        // If using com.apple.Notes.sdefstub, you get a convenient application() function
+        // Using the strongly typed application() convenience function
         guard let app = Notes.application() else { 
             fatalError("Could not access Notes") 
         }
@@ -412,11 +412,11 @@ struct NotesMain {
             print("Objective-C style - body: \(body.prefix(50))...")
         }
 
-        if !(app.isActive ?? false) {
+        if !app.isActive {
             app.activate()
         }
         app.windows.forEach { window in
-            window.closeSaving?(.no, savingIn: nil)
+            window.close() // equivalent to close(saving: .ask, url: nil)
         }
     }
 }
@@ -440,8 +440,6 @@ Both naming conventions access the same underlying properties with proper `@objc
 ## Dependencies
 
 - [Swift Argument Parser](https://github.com/apple/swift-argument-parser) (1.2.0+)
-- [SwiftSyntax](https://github.com/apple/swift-syntax) (510.0.0+)
-
 
 ## Licence
 
