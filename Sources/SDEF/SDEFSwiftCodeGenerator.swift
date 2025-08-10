@@ -2122,6 +2122,8 @@ public typealias \(baseName)ElementArray = SBElementArray
             public typealias RGBColor = NSColor
             /// Represents a TIFF picture
             public typealias TIFFPicture = NSImage
+            /// Represents a TIFF image
+            public typealias TIFFImage = NSImage
 
         """
         return aliases
