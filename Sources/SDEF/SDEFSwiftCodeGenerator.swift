@@ -1027,23 +1027,49 @@ public typealias \(baseName)ElementArray = SBElementArray
             (basePropertyName, swiftNamespacedType(for: property.type))
         }
 
-        let accessors = switch property.access {
-        case "r":
-            "{ get }"
-        case "rw", "":
-            "{ get set }"
-        case "w":
-            "{ get set }" // Even write-only properties need to be readable in Swift protocols
-        default:
-            "{ get set }"
-        }
-
-        // Use the Swift-ified property name for @objc attribute to ensure valid syntax
+        // Always use the original SDEF property name for @objc attribute for ABI compatibility
         let objcName = property.name.swiftPropertyName
-        if objcName != propertyName {
-            code += "        @objc(\(objcName)) optional var \(propertyName): \(swiftType) \(accessors)\n"
+
+        // Check if this is a non-primitive type that needs special handling
+        let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "NSNumber", "NSRect", "NSPoint", "NSSize"]
+        let needsSeparateMethods = !basicTypes.contains(swiftType) && !property.type.isList
+
+        if needsSeparateMethods {
+            // Generate separate getter and setter methods using the property code
+            // to avoid naming conflicts with the Swift convenience property
+            let methodBaseName = property.code.capitalisedFirstLetter
+
+            // Always generate getter if not write-only
+            if property.access != "w" {
+                code += "        @objc(\(objcName)) optional func get\(methodBaseName)() -> \(swiftType)\n"
+            }
+
+            // Always generate setter if not read-only
+            if property.access != "r" {
+                // Add setter documentation if property has description
+                if let description = property.description {
+                    code += "        /// Set \(description.lowercasedFirstLetter)\n"
+                }
+                code += "        @objc(set\(objcName.capitalisedFirstLetter):) optional func set\(methodBaseName)(_ value: \(swiftType))\n"
+            }
         } else {
-            code += "        @objc optional var \(propertyName): \(swiftType) \(accessors)\n"
+            // Use regular property syntax for primitive types and lists
+            let accessors = switch property.access {
+            case "r":
+                "{ get }"
+            case "rw", "":
+                "{ get set }"
+            case "w":
+                "{ get set }" // Even write-only properties need to be readable in Swift protocols
+            default:
+                "{ get set }"
+            }
+
+            if objcName != propertyName {
+                code += "        @objc(\(objcName)) optional var \(propertyName): \(swiftType) \(accessors)\n"
+            } else {
+                code += "        @objc optional var \(propertyName): \(swiftType) \(accessors)\n"
+            }
         }
 
         return code
@@ -1148,19 +1174,43 @@ public typealias \(baseName)ElementArray = SBElementArray
             (basePropertyName, swiftType(for: property.type))
         }
 
-        let accessors = switch property.access {
-        case "r":
-            " { get }"
-        case "w":
-            " { set }"
-        default:
-            " { get set }"
-        }
-
         // Always use the original SDEF property name for @objc attribute for ABI compatibility
-        // Convert to valid Swift identifier (camelCase) if needed
         let objcName = property.name.swiftPropertyName
-        code += "    @objc(\(objcName)) optional var \(propertyName): \(swiftType)\(accessors)\n"
+
+        // Check if this is a non-primitive type that needs special handling
+        let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "NSNumber", "NSRect", "NSPoint", "NSSize"]
+        let needsSeparateMethods = !basicTypes.contains(swiftType) && !property.type.isList
+
+        if needsSeparateMethods {
+            // Generate separate getter and setter methods using the property code
+            // to avoid naming conflicts with the Swift convenience property
+            let methodBaseName = property.code.capitalisedFirstLetter
+
+            // Always generate getter if not write-only
+            if property.access != "w" {
+                code += "    @objc(\(objcName)) optional func get\(methodBaseName)() -> \(swiftType)\n"
+            }
+
+            // Always generate setter if not read-only
+            if property.access != "r" {
+                // Add setter documentation if property has description
+                if let description = property.description {
+                    code += "    /// Set \(description.lowercasedFirstLetter)\n"
+                }
+                code += "    @objc(set\(objcName.capitalisedFirstLetter):) optional func set\(methodBaseName)(_ value: \(swiftType))\n"
+            }
+        } else {
+            // Use regular property syntax for primitive types and lists
+            let accessors = switch property.access {
+            case "r":
+                " { get }"
+            case "w":
+                " { set }"
+            default:
+                " { get set }"
+            }
+            code += "    @objc(\(objcName)) optional var \(propertyName): \(swiftType)\(accessors)\n"
+        }
 
         return code
     }
@@ -1836,6 +1886,71 @@ public typealias \(baseName)ElementArray = SBElementArray
         /// Strongly typed accessors for \(sdefClass.name)
         public extension \(protocolName) {
         """
+
+        // Generate strongly typed property wrappers for non-primitive properties
+        for property in sdefClass.properties {
+            // Skip list properties (handled separately below)
+            guard !property.type.isList else { continue }
+
+            let swiftType = swiftType(for: property.type)
+            let basicTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "NSNumber", "NSRect", "NSPoint", "NSSize"]
+            let needsPropertyWrapper = !basicTypes.contains(swiftType)
+
+            if needsPropertyWrapper {
+                // Use cocoa key if available, otherwise use the property name
+                let propertyName = if let cocoaKey = property.cocoaKey {
+                    cocoaKey.escapedReservedKeyword
+                } else {
+                    property.name.swiftPropertyName
+                }
+
+                // Use the property code for method names to avoid conflicts
+                let methodBaseName = property.code.capitalisedFirstLetter
+
+                // Determine the type name with proper namespace
+                let typeName = if swiftType == baseName || model.suites.flatMap({ $0.classes }).contains(where: { $0.name.swiftClassName == swiftType }) {
+                    // If the type conflicts with namespace or is a class in our model, add namespace
+                    if swiftType == baseName {
+                        "\(baseName).\(swiftType)Protocol"
+                    } else {
+                        "\(baseName).\(swiftType)"
+                    }
+                } else {
+                    swiftType
+                }
+
+                if let description = property.description {
+                    code += "\n    /// \(description.capitalisedFirstLetter)"
+                }
+
+                if property.access == "r" {
+                    // Read-only property
+                    code += """
+
+                    @inlinable var \(propertyName): \(typeName)! {
+                        get { get\(methodBaseName)?() }
+                    }
+                """
+                } else if property.access == "w" {
+                    // Write-only property
+                    code += """
+
+                    @inlinable var \(propertyName): \(typeName)! {
+                        set { set\(methodBaseName)?(newValue) }
+                    }
+                """
+                } else {
+                    // Read-write property
+                    code += """
+
+                    @inlinable var \(propertyName): \(typeName)! {
+                        get { get\(methodBaseName)?() }
+                        set { set\(methodBaseName)?(newValue) }
+                    }
+                """
+                }
+            }
+        }
 
         // Generate strongly typed accessors for element arrays
         for element in sdefClass.elements {
