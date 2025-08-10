@@ -140,7 +140,7 @@ struct SDEFToSwift: AsyncParsableCommand {
             throw SDEFSwiftGenerator.ValidationError("Invalid base name. Must contain only letters, numbers, and underscores.")
         }
 
-        if verbose {
+        if debug {
             print("Processing: \(sdefPath)")
             print("Base name: \(finalBasename)")
             print("Output directory: \(outputDirectory)")
@@ -149,8 +149,9 @@ struct SDEFToSwift: AsyncParsableCommand {
         do {
             let generator = SDEFSwiftGenerator(sdefURL: sdefURL, basename: finalBasename, outputDirectory: outputDirectory, includeHidden: includeHidden, generateClassNamesEnum: generateClassNamesEnum, shouldGenerateStronglyTypedExtensions: generateStronglyTypedExtensions, shouldGenerateRecursively: recursive, generatePrefixedTypealiases: prefixed, generateFlatTypealiases: flat, bundleIdentifier: finalBundle, verbose: verbose, debug: debug)
             let outputURL = try await generator.generate()
-            print("Generated Swift file: \(outputURL.path)")
-
+            if verbose {
+                print("Generated Swift file: \(outputURL.lastPathComponent)")
+            }
         } catch let error as SDEFSwiftGenerator.ValidationError {
             throw error
         } catch let error as SDEFSwiftGenerator.RuntimeError {
