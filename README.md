@@ -419,7 +419,8 @@ struct NotesMain {
             window.closeSaving?(.no, savingIn: nil)
         }
     }
-}```
+}
+```
 
 ### Dual Naming Convention Support
 
