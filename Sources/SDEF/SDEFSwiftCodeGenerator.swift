@@ -2118,6 +2118,8 @@ public typealias \(baseName)ElementArray = SBElementArray
             public typealias ElementArray = SBElementArray
 
             // MARK: - Common Value Types
+            /// Represents a color value
+            public typealias Color = NSColor
             /// Represents an RGB color value
             public typealias RGBColor = NSColor
             /// Represents a TIFF picture

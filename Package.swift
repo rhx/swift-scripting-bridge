@@ -33,6 +33,7 @@ let package = Package(
         .library(name: "SafariScripting", targets: ["SafariScripting"]),
         .library(name: "ShortcutsScripting", targets: ["ShortcutsScripting"]),
         .library(name: "SystemSettingsScripting", targets: ["SystemSettingsScripting"]),
+        .library(name: "TerminalScripting", targets: ["TerminalScripting"]),
         .library(name: "TextEditScripting", targets: ["TextEditScripting"]),
         .library(name: "TVScripting", targets: ["TVScripting"]),
     ],
@@ -62,6 +63,7 @@ let package = Package(
         .target(name: "SafariScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .target(name: "ShortcutsScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .target(name: "SystemSettingsScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
+        .target(name: "TerminalScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .target(name: "TextEditScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .target(name: "TVScripting", dependencies: ["SwiftScriptingBridge"], plugins: ["GenerateScriptingInterface"]),
         .testTarget(
