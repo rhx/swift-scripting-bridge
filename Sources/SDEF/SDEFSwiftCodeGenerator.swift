@@ -1201,7 +1201,8 @@ public typealias \(baseName)ElementArray = SBElementArray
                 if let description = property.description {
                     code += "    /// Set \(description.lowercasedFirstLetter)\n"
                 }
-                code += "    @objc(set\(objcName.capitalisedFirstLetter):) optional func set\(methodBaseName)(_ value: \(swiftType))\n"
+                let setterType = swiftSetterParameterType(for: property.type)
+                code += "    @objc(set\(objcName.capitalisedFirstLetter):) optional func set\(methodBaseName)(_ value: \(setterType))\n"
             }
         } else {
             // Use regular property syntax for primitive types and lists
@@ -1939,19 +1940,33 @@ public typealias \(baseName)ElementArray = SBElementArray
                 """
                 } else if property.access == "w" {
                     // Write-only property
+                    let setterCall = if property.type.isOptional {
+                        // If the setter accepts an optional, pass newValue directly
+                        "set\(methodBaseName)?(newValue)"
+                    } else {
+                        // If the setter expects non-optional, unwrap first
+                        "if let newValue { set\(methodBaseName)?(newValue) }"
+                    }
                     code += """
 
                     @inlinable var \(propertyName): \(typeName)! {
-                        set { set\(methodBaseName)?(newValue) }
+                        set { \(setterCall) }
                     }
                 """
                 } else {
                     // Read-write property
+                    let setterCall = if property.type.isOptional {
+                        // If the setter accepts an optional, pass newValue directly
+                        "set\(methodBaseName)?(newValue)"
+                    } else {
+                        // If the setter expects non-optional, unwrap first
+                        "if let newValue { set\(methodBaseName)?(newValue) }"
+                    }
                     code += """
 
                     @inlinable var \(propertyName): \(typeName)! {
                         get { get\(methodBaseName)?() }
-                        set { set\(methodBaseName)?(newValue) }
+                        set { \(setterCall) }
                     }
                 """
                 }

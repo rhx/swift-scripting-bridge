@@ -10,7 +10,7 @@ import Foundation
 // MARK: - Constants
 
 /// Basic Swift types that don't require special property wrapper handling
-public let basicSwiftTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "NSNumber", "NSRect", "NSPoint", "NSSize"]
+public let basicSwiftTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "NSNumber", "NSRect", "NSPoint", "NSSize", "Any"]
 
 /// Extended basic types including ScriptingBridge types for alias generation
 public let extendedBasicSwiftTypes = ["String", "Int", "Double", "Bool", "Date", "URL", "[String: Any]", "Any", "NSNull", "NSRect", "NSNumber", "NSPoint", "NSSize", "SBObject", "SBElementArray", "NSData"]
