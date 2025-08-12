@@ -1,7 +1,7 @@
-# SwiftScripting Notes Example
+# SwiftScripting System Events Example
 
 This is a simple example that uses [swift-scripting-bridge](https://github.com/rhx/swift-scripting-bridge)
-to interact with the Notes application.
+to interact with System Events, putting the computer to sleep.
 
 ## Dependency
 
